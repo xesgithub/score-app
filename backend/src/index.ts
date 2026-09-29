@@ -11,6 +11,17 @@ app.use(express.json());
 
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
+// เวอร์ชันแอป (อ่านจาก package.json ของ backend)
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const APP_VERSION: string = (() => {
+  try {
+    return require('../package.json').version ?? 'unknown';
+  } catch {
+    return process.env.APP_VERSION ?? 'unknown';
+  }
+})();
+app.get('/api/version', (_req, res) => res.json({ version: APP_VERSION }));
+
 app.use('/api/admin', adminRoutes);
 app.use('/api/judge', judgeRoutes);
 

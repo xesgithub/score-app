@@ -5,6 +5,7 @@ import './index.css';
 import AdminPage from './pages/AdminPage';
 import ResultsPage from './pages/ResultsPage';
 import JudgePage from './pages/JudgePage';
+import VersionFooter from './components/VersionFooter';
 
 const router = createBrowserRouter([
   { path: '/', element: <Navigate to="/admin" replace /> },
@@ -16,5 +17,6 @@ const router = createBrowserRouter([
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <RouterProvider router={router} />
+    <VersionFooter />
   </React.StrictMode>
 );

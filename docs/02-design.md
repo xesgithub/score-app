@@ -28,9 +28,12 @@
 ```
 
 หลักการออกแบบ (เน้นฟรี + ย้ายง่าย):
-- ทั้งระบบแพ็กเป็น **Docker Compose** ชุดเดียว → ยกไปรันบนเครื่อง/คลาวด์ไหนก็ได้
-- ฐานข้อมูลใช้ **PostgreSQL** (โปรดักชัน) หรือ **SQLite** (เล็ก/พกพาง่าย) — เลือกได้ด้วย config เดียว ไม่ผูก vendor
+- ทั้งระบบแพ็กเป็น **Docker image เดียว** (backend เสิร์ฟ API + frontend static) → ยกไปรันที่ไหนก็ได้
+- ฐานข้อมูลใช้ **SQLite** (ผ่าน Prisma) — เล็ก พกพาง่าย เพียงพอสำหรับโหลดต่ำ (< 10 users, ≤ 20 ทีม); สลับไป PostgreSQL ได้โดยเปลี่ยน provider
 - ไม่พึ่ง managed service เฉพาะเจ้า → ย้ายค่าย/ย้ายเครื่องไม่ต้องแก้โค้ด
+
+> **หมายเหตุ deploy จริง (v0.2.0):** deploy บน Azure Container Apps โดย SQLite เก็บบน Azure Files (mount `nobrl`)
+> ดังนั้นต้องจำกัด **1 replica** (SQLite+SMB รองรับตัวเขียนเดียว) — รายละเอียดใน `05-deployment.md`
 
 ## 2. Data Model (ER)
 
@@ -147,10 +150,18 @@ POST   /api/competitions/:id/judges           สร้างกรรมกา�
 POST   /api/judges/:id/revoke-token            เพิกถอน/สร้าง token ใหม่
 GET    /api/judges/:id/link                     ดึงลิงก์เฉพาะของกรรมการ
 
-GET    /api/competitions/:id/progress          ดูความคืบหน้าว่ากรรมการให้ครบหรือยัง
-GET    /api/competitions/:id/results           ผลรวม + breakdown ต่อกรรมการ/หัวข้อ + อันดับ
-GET    /api/competitions/:id/export?format=csv|xlsx|pdf
+GET    /api/admin/competitions/:id/results     ผลรวม + breakdown ต่อกรรมการ/หัวข้อ + อันดับ
+GET    /api/admin/competitions/:id/export       Export เป็น Excel (.xlsx)   *(ทำแล้ว v0.2.0)*
+POST   /api/admin/competitions/import           Import Excel -> สร้างการแข่งขันใหม่ (body = ไฟล์ .xlsx raw)  *(ทำแล้ว v0.2.0)*
+DELETE /api/admin/competitions/:id              ลบการแข่งขัน (409 ถ้ายังไม่ closed)  *(ทำแล้ว v0.2.0)*
+DELETE /api/admin/judges/:id                    ลบกรรมการ  *(ทำแล้ว v0.2.0)*
+GET    /api/version                             เลขเวอร์ชันแอป  *(ทำแล้ว v0.2.0)*
 ```
+
+> **หมายเหตุสถานะจริง (v0.2.0):**
+> - endpoint จริงมี prefix `/api/admin/...` (เช่น `/api/admin/competitions`)
+> - **ยังไม่ได้ทำ:** `/admin/login` + JWT auth (หน้า Admin ยังไม่มีระบบ login), `/progress`, export PDF/CSV, tie-break (ใช้เฉลี่ยธรรมดา + อันดับร่วมเมื่อคะแนนเท่ากัน)
+> - competitor delete = soft delete (is_active=false); judge/criteria/competition delete = ลบจริง (cascade)
 
 ### 4.2 Judge (auth ด้วย access_token ในลิงก์)
 ```

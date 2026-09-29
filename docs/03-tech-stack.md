@@ -26,67 +26,72 @@
 
 > ทางเลือกที่เบากว่านี้ถ้าต้องการเรียบง่ายสุด: ใช้ **SQLite** ไฟล์เดียว + backend เสิร์ฟ static frontend ในโปรเซสเดียว → ได้ไฟล์รันเดียวจบ ย้ายแค่ก๊อปโฟลเดอร์
 
-## 3. ตัวเลือกการ Deploy แบบฟรี (portable)
+## 3. การ Deploy (จริง: Azure Container Apps)
 
-เพราะแพ็กเป็น Docker แล้ว จะรันที่ไหนก็ได้ **ยึดฟรีเป็นหลัก**
+> รายละเอียดครบใน [`05-deployment.md`](05-deployment.md)
 
-**ตัวเลือกหลักที่เลือก: Fly.io**
-- Free tier รัน Docker container ได้เต็ม (ไม่ใช่ serverless) → รองรับ **WebSocket** ค้างยาวสำหรับ Live Dashboard
-- มี PostgreSQL ฟรีขนาดเล็ก
-- รัน Docker Compose ที่เราแพ็กไว้ได้โดยแทบไม่ต้องแก้ → ตรงเป้า "ฟรี + ย้ายง่าย"
+Deploy จริงบน **Azure Container Apps (ACA)**:
+- แพ็กเป็น **Docker image เดียว** (backend เสิร์ฟทั้ง API + frontend static)
+- Image build/เก็บบน **Azure Container Registry (ACR)**
+- ข้อมูล **SQLite บน Azure Files** (mount `/data` ด้วย option `nobrl`) → ข้อมูลถาวรแม้ scale-to-zero
+- **scale-to-zero** (minReplicas=0) ประหยัดค่าใช้จ่าย; **maxReplicas=1** (ข้อจำกัดของ SQLite+Azure Files)
+- HTTPS + FQDN อัตโนมัติจาก ACA
 
-**ทางเลือกสำรอง (ฟรีเช่นกัน)**
-- **Render** — free tier มี Postgres ฟรี (จำกัดเวลา); ข้อควรรู้: instance ฟรีจะ sleep เมื่อไม่มีทราฟฟิก (สะดุดตอน request แรก)
-- **Railway** — ตั้งค่าง่าย มี Postgres ในตัว แต่ฟรีเป็นเครดิตรายเดือนจำกัด
-- **Self-host / โน้ตบุ๊กในงาน** — ฟรีสุด รัน `docker compose up` ให้กรรมการต่อ WiFi วงเดียวกัน เหมาะกับ event วันเดียว
+**เหมาะกับ use case จริง** (กรรมการ+admin < 10, ทีม ≤ 20 — โหลดต่ำ) SQLite เพียงพอ
 
-**ไม่แนะนำสำหรับแอปนี้**
-- **Vercel / Netlify** — เหมาะ frontend/serverless เท่านั้น รองรับ WebSocket ค้างยาวได้ไม่ดี → ไม่เหมาะกับ Live Dashboard
+> **หมายเหตุ:** แผนเดิมเคยพิจารณา Fly.io แต่เปลี่ยนมาใช้ Azure เพราะมี subscription (VS Enterprise) พร้อมใช้อยู่แล้ว
+> โครงสร้างยังคง portable (Docker + Prisma) — ย้ายไป cloud อื่นหรือ PostgreSQL ได้โดยแก้เล็กน้อย
 
-> ทั้งหมดเป็นมาตรฐานเปิด (Docker + Postgres/SQLite) — ไม่ผูกกับ cloud เจ้าใดเจ้าหนึ่ง เปลี่ยนที่ deploy ได้โดยไม่แก้โค้ด
+**ทางเลือกอื่นที่ยังทำได้ (portable):**
+- Self-host / โน้ตบุ๊กในงาน — `docker build` + `docker run` ให้กรรมการต่อ WiFi วงเดียวกัน
+- ย้าย DB ไป PostgreSQL (ถ้าโหลดสูง/ต้องหลาย replica) — เปลี่ยน provider ใน Prisma
 
-## 4. โครงสร้างโปรเจกต์ (แนะนำ)
+## 4. โครงสร้างโปรเจกต์ (จริง)
 
 ```
 score-app/
 ├─ docs/                      # เอกสาร spec
 │  ├─ 01-requirements.md
 │  ├─ 02-design.md
-│  └─ 03-tech-stack.md
+│  ├─ 03-tech-stack.md
+│  ├─ 04-live-workflow.md     # แผนอนาคต (ยังไม่ทำ)
+│  └─ 05-deployment.md        # สถาปัตยกรรม deploy บน Azure
 ├─ backend/
 │  ├─ src/
-│  │  ├─ index.ts             # entry, ตั้งค่า Express
-│  │  ├─ config/              # env, db config (สลับ pg/sqlite)
-│  │  ├─ routes/
-│  │  │  ├─ admin.ts
-│  │  │  └─ judge.ts
-│  │  ├─ controllers/
-│  │  ├─ services/
-│  │  │  └─ scoring.ts        # สูตรคำนวณคะแนน/อันดับ
-│  │  ├─ middleware/
-│  │  │  ├─ adminAuth.ts      # JWT
-│  │  │  └─ judgeAuth.ts      # ตรวจ access_token
-│  │  └─ export/              # csv/xlsx/pdf
+│  │  ├─ index.ts             # entry: Express + เสิร์ฟ frontend static + /api/health,/api/version
+│  │  ├─ prisma.ts            # PrismaClient singleton
+│  │  ├─ scoring.ts           # สูตรคำนวณคะแนน/อันดับ
+│  │  ├─ excel.ts             # export/import Excel (exceljs)
+│  │  ├─ token.ts             # สร้าง access token กรรมการ
+│  │  ├─ seed.ts              # seed ข้อมูลตัวอย่าง (idempotent, ใช้ตอน start บน prod)
+│  │  └─ routes/
+│  │     ├─ admin.ts          # competitions/criteria/competitors/judges/results/export/import/delete
+│  │     └─ judge.ts          # session/scores (auth ด้วย access token)
 │  ├─ prisma/
-│  │  └─ schema.prisma        # data model (Competition, Criterion, ...)
-│  ├─ package.json
-│  └─ Dockerfile
+│  │  ├─ schema.prisma        # data model + binaryTargets (native, debian-openssl-3.0.x)
+│  │  ├─ migrations/
+│  │  └─ seed.ts              # seed สำหรับ dev (ts-node)
+│  └─ package.json
 ├─ frontend/
 │  ├─ src/
-│  │  ├─ main.tsx
-│  │  ├─ pages/
-│  │  │  ├─ admin/            # ตั้งค่า/ผล/อันดับ
-│  │  │  └─ judge/            # หน้ากรอกคะแนน
+│  │  ├─ main.tsx             # router + VersionFooter
+│  │  ├─ api.ts               # เรียก backend (/api)
 │  │  ├─ components/
-│  │  ├─ api/                 # เรียก backend
-│  │  └─ lib/
+│  │  │  └─ VersionFooter.tsx
+│  │  └─ pages/
+│  │     ├─ AdminPage.tsx     # ตั้งค่า + ตารางการแข่งขัน + export/import/ลบ
+│  │     ├─ ResultsPage.tsx   # ผล/อันดับ + export
+│  │     └─ JudgePage.tsx     # ตารางกรอกคะแนน (ปุ่ม 0–5)
 │  ├─ package.json
-│  ├─ vite.config.ts
-│  └─ Dockerfile
-├─ docker-compose.yml         # frontend + backend + postgres (หรือ sqlite mode)
-├─ .env.example
+│  └─ vite.config.ts          # dev proxy /api -> :4000
+├─ Dockerfile                 # multi-stage: build frontend+backend -> image เดียว
+├─ .dockerignore
+├─ VERSION                    # เลขเวอร์ชัน (semver)
+├─ CHANGELOG.md
 └─ README.md
 ```
+
+> หมายเหตุ: ไม่มี `docker-compose.yml` — deploy เป็น Docker image เดียวบน ACA (backend เสิร์ฟ frontend static)
 
 ## 5. ตัวแปรสภาพแวดล้อม (.env.example)
 

@@ -10,6 +10,7 @@
 - [`docs/02-design.md`](docs/02-design.md) — data model, สูตรคะแนน, API
 - [`docs/03-tech-stack.md`](docs/03-tech-stack.md) — เทคโนโลยี + deploy
 - [`docs/04-live-workflow.md`](docs/04-live-workflow.md) — workflow present สด (แผนอนาคต)
+- [`docs/05-deployment.md`](docs/05-deployment.md) — deploy บน Azure Container Apps (resource, redeploy, ข้อจำกัด)
 
 ## Tech Stack
 
@@ -28,6 +29,15 @@ score-app/
 
 ## การรัน (development)
 
+### วิธีง่ายสุด (Windows) — ใช้ไฟล์ .bat
+```
+1) ดับเบิลคลิก  setup.bat   (ครั้งแรกครั้งเดียว: ติดตั้ง deps + สร้าง DB + seed)
+2) ดับเบิลคลิก  dev.bat     (เปิด backend + frontend ในหน้าต่างแยก)
+```
+- Backend: http://localhost:4000
+- Frontend: http://localhost:5173/admin
+
+### หรือรันเองด้วยคำสั่ง
 ```bash
 # 1) Backend
 cd backend

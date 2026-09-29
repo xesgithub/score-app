@@ -85,6 +85,7 @@ export const adminApi = {
   deleteJudge: (id: string) => req<void>(`/admin/judges/${id}`, { method: 'DELETE' }),
   getJudgeLink: (id: string) => req<{ url: string; token: string }>(`/admin/judges/${id}/link`),
   getResults: (id: string) => req<ResultsResponse>(`/admin/competitions/${id}/results`),
+  getVersion: () => req<{ version: string }>(`/version`),
   deleteCompetition: (id: string) => req<void>(`/admin/competitions/${id}`, { method: 'DELETE' }),
   exportUrl: (id: string) => `${BASE}/admin/competitions/${id}/export`,
   importCompetition: async (file: File) => {
