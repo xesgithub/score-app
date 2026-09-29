@@ -4,24 +4,28 @@
 > อ้างอิง: `01-requirements.md`, `02-design.md`
 > บริบท: การแข่งขันแบบ **present สดหน้างาน** — แต่ละทีมขึ้น present ทีละทีม กรรมการให้คะแนนสดแล้วนำมารวม
 
-## 1. ภาพรวมหน้างาน (Event Flow)
+> [!IMPORTANT]
+> เอกสารนี้เป็น **แผนอนาคต (ยังไม่ได้ทำใน v0.2.0)** — Live Dashboard / WebSocket / การล็อกทีละทีม ยังไม่ถูก implement
+> เวอร์ชันปัจจุบันใช้ Lock/Unlock ทั้งการแข่งขัน (ดู `01-requirements.md`)
 
-```
-เริ่มงาน
-  │
-  ├─ Admin เปิดการแข่งขัน (status = open) → เปิด Live Dashboard บนจอคุมงาน
-  │
-  ├─ วนทีละทีม:
-  │    1. Admin กด "ทีม X กำลัง present"  ──►  หน้าจอกรรมการทุกคน sync ไปทีม X
-  │    2. ทีม X present
-  │    3. กรรมการแต่ละคนให้คะแนนทีม X (แยกกัน มองไม่เห็นกัน)
-  │    4. กรรมการกด "ส่งคะแนนทีมนี้" → ล็อกคะแนนทีม X ของกรรมการคนนั้น
-  │    5. Dashboard แสดงสด: กรรมการ 4/5 คนส่งครบแล้ว (ไม่โชว์คะแนน)
-  │    6. Admin เห็นครบ → กด "ทีมถัดไป"
-  │
-  ├─ (ถ้าต้องแก้) Admin กด "ปลดล็อก" ทีม/กรรมการที่ต้องการ → กรรมการแก้ได้
-  │
-  └─ จบทุกทีม → Admin กด "ปิดการแข่งขัน" (status = closed) → เปิดดูผล/อันดับ/export
+## 1. 🗺️ ภาพรวมหน้างาน (Event Flow)
+
+```mermaid
+flowchart TD
+    Start([เริ่มงาน]) --> Open["Admin เปิดการแข่งขัน (open)<br/>เปิด Live Dashboard"]
+    Open --> Pick["Admin กด: ทีม X กำลัง present"]
+    Pick --> Sync["หน้าจอกรรมการ sync ไปทีม X"]
+    Sync --> Present["ทีม X present"]
+    Present --> Score["กรรมการให้คะแนน (แยกกัน)"]
+    Score --> Submit["กรรมการกด 'ส่งคะแนนทีมนี้' → ล็อก"]
+    Submit --> Dash["Dashboard: ส่งครบ N/M คน (ไม่โชว์คะแนน)"]
+    Dash --> More{ยังมีทีมอีกไหม?}
+    More -- ใช่ --> Pick
+    More -- ไม่ --> Close["Admin ปิดการแข่งขัน (closed)"]
+    Close --> Result([ดูผล / อันดับ / export])
+
+    Dash -. ถ้าต้องแก้ .-> Unlock["Admin ปลดล็อก ทีม×กรรมการ"]
+    Unlock -.-> Score
 ```
 
 ## 2. บทบาทและมุมมอง
@@ -52,12 +56,17 @@
 - ปุ่ม **"ส่งคะแนนทีมนี้"** → ล็อก (แก้ไม่ได้จนกว่า admin ปลดล็อก)
 - เห็นเฉพาะสถานะ **ของตัวเอง** ว่าทีมไหนส่งแล้ว/ยัง — ไม่เห็นของคนอื่น ไม่เห็นคะแนนรวม
 
-## 3. สถานะการส่งคะแนน (State per Judge × Competitor)
+## 3. 🚦 สถานะการส่งคะแนน (State per Judge × Competitor)
 
-```
-NOT_STARTED  ─(เริ่มกรอก)─►  IN_PROGRESS  ─(กด "ส่งคะแนนทีมนี้")─►  SUBMITTED (locked)
-     ▲                                                                    │
-     └───────────────────── admin ปลดล็อก ◄───────────────────────────────┘
+```mermaid
+stateDiagram-v2
+    [*] --> NOT_STARTED
+    NOT_STARTED --> IN_PROGRESS : เริ่มกรอก
+    IN_PROGRESS --> SUBMITTED : กด "ส่งคะแนนทีมนี้"
+    SUBMITTED --> IN_PROGRESS : admin ปลดล็อก
+    NOT_STARTED : ⚪ NOT_STARTED
+    IN_PROGRESS : 🟡 IN_PROGRESS
+    SUBMITTED : 🟢 SUBMITTED (locked)
 ```
 
 - **NOT_STARTED (⚪):** ยังไม่มีคะแนนหัวข้อใดเลย

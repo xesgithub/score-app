@@ -3,28 +3,18 @@
 > เอกสารฉบับร่าง v0.1 — 2026-09-29
 > อ้างอิง: `01-requirements.md`
 
-## 1. สถาปัตยกรรมภาพรวม
+## 1. 🏗️ สถาปัตยกรรมภาพรวม
 
-```
-┌─────────────────┐        ┌─────────────────┐
-│  Admin (Web UI) │        │ Judge (Web UI)  │
-│  ตั้งค่า/ดูผล    │        │ กรอกคะแนน (ลิงก์) │
-└────────┬────────┘        └────────┬────────┘
-         │  HTTPS / REST            │  HTTPS / REST
-         └───────────┬──────────────┘
-                     ▼
-          ┌─────────────────────┐
-          │   Backend API       │
-          │ (REST + Auth)       │
-          │ - Admin auth        │
-          │ - Judge token auth  │
-          │ - คำนวณคะแนน/อันดับ  │
-          └──────────┬──────────┘
-                     ▼
-          ┌─────────────────────┐
-          │   Database          │
-          │ PostgreSQL / SQLite │
-          └─────────────────────┘
+```mermaid
+flowchart TD
+    Admin["🖥️ Admin (Web UI)<br/>ตั้งค่า / ดูผล"]
+    Judge["📱 Judge (Web UI)<br/>กรอกคะแนน (ลิงก์เฉพาะ)"]
+    API["⚙️ Backend API (Express)<br/>Admin auth · Judge token auth<br/>คำนวณคะแนน / อันดับ · เสิร์ฟ frontend"]
+    DB[("🗄️ Database<br/>SQLite (Prisma)")]
+
+    Admin -- "HTTPS / REST" --> API
+    Judge -- "HTTPS / REST" --> API
+    API --> DB
 ```
 
 หลักการออกแบบ (เน้นฟรี + ย้ายง่าย):
@@ -35,63 +25,61 @@
 > **หมายเหตุ deploy จริง (v0.2.0):** deploy บน Azure Container Apps โดย SQLite เก็บบน Azure Files (mount `nobrl`)
 > ดังนั้นต้องจำกัด **1 replica** (SQLite+SMB รองรับตัวเขียนเดียว) — รายละเอียดใน `05-deployment.md`
 
-## 2. Data Model (ER)
+## 2. 🗂️ Data Model (ER)
 
-```
-Competition (การแข่งขัน)
-  id (PK)
-  name
-  description
-  event_date
-  status            -- draft | open | closed
-  score_step        -- = 1 (คะแนนกรรมการเป็นจำนวนเต็ม 0–5)
-  created_at, updated_at
+```mermaid
+erDiagram
+    Competition ||--o{ Criterion : "มีหัวข้อ"
+    Competition ||--o{ Competitor : "มีผู้เข้าแข่ง"
+    Competition ||--o{ Judge : "มีกรรมการ"
+    Judge ||--o{ Score : "ให้คะแนน"
+    Competitor ||--o{ Score : "ถูกให้คะแนน"
+    Criterion ||--o{ Score : "ตามหัวข้อ"
 
-Criterion (หัวข้อการให้คะแนน)  -- N ต่อ 1 Competition
-  id (PK)
-  competition_id (FK)
-  name
-  weight_percent    -- น้ำหนัก % (รวมทุก criterion ในการแข่งขัน = 100)
-  max_score         -- คงที่ = 5
-  display_order
-
-Competitor (ผู้เข้าแข่งขัน / ทีม)  -- N ต่อ 1 Competition
-  id (PK)
-  competition_id (FK)
-  name              -- ชื่อบุคคลหรือชื่อทีม (นับเป็น 1 entry)
-  bib_number        -- หมายเลข/ลำดับ (optional)
-  note              -- หมายเหตุ (optional)
-  is_active         -- รองรับการเพิ่ม/ลด (soft delete)
-  display_order
-
-Judge (กรรมการ)  -- N ต่อ 1 Competition
-  id (PK)
-  competition_id (FK)
-  label             -- เช่น "กรรมการ 1"
-  access_token      -- token สุ่ม สำหรับลิงก์เฉพาะ (unique, index)
-  token_revoked     -- boolean เพิกถอนลิงก์
-  created_at
-
-Score (คะแนน)  -- 1 ค่า ต่อ (Judge × Competitor × Criterion)
-  id (PK)
-  judge_id (FK)
-  competitor_id (FK)
-  criterion_id (FK)
-  value             -- 0..5 (ตาม score_step)
-  submitted_at
-  updated_at
-  UNIQUE(judge_id, competitor_id, criterion_id)
-
-AdminUser (ผู้ดูแล)
-  id (PK)
-  username
-  password_hash
-  created_at
+    Competition {
+        string id PK
+        string name
+        string description
+        datetime event_date
+        string status "draft|open|closed"
+        int score_step "= 1 (จำนวนเต็ม 0-5)"
+    }
+    Criterion {
+        string id PK
+        string competition_id FK
+        string name
+        float weight_percent "รวมทุกหัวข้อ = 100"
+        float max_score "= 5"
+        int display_order
+    }
+    Competitor {
+        string id PK
+        string competition_id FK
+        string name "บุคคลหรือทีม = 1 entry"
+        string bib_number
+        boolean is_active "soft delete"
+        int display_order
+    }
+    Judge {
+        string id PK
+        string competition_id FK
+        string label
+        string access_token UK "ลิงก์เฉพาะ"
+        boolean token_revoked
+    }
+    Score {
+        string id PK
+        string judge_id FK
+        string competitor_id FK
+        string criterion_id FK
+        float value "0-5"
+        datetime submitted_at
+    }
 ```
 
-ความสัมพันธ์:
-- Competition 1—N Criterion, Competitor, Judge
-- Score เป็นตารางเชื่อม (junction) ระหว่าง Judge × Competitor × Criterion โดยมี unique constraint กันซ้ำ
+> [!NOTE]
+> - `Score` มี **unique constraint** `(judge_id, competitor_id, criterion_id)` กันคะแนนซ้ำ
+> - `AdminUser` (username/password_hash) อยู่ใน spec แต่ **ยังไม่ได้ทำ** ใน v0.2.0 (หน้า Admin ยังไม่มี login)
 
 ## 3. สูตรการคำนวณคะแนน
 
@@ -175,6 +163,31 @@ PUT    /api/judge/scores?token=...             บันทึก/แก้ค�
 - ไม่มี endpoint ฝั่ง judge ที่คืนคะแนนรวม/อันดับ
 
 ## 5. Flow การใช้งาน
+## 5. 🔄 Flow การใช้งาน
+
+```mermaid
+sequenceDiagram
+    actor A as 🖥️ Admin
+    participant S as ⚙️ ระบบ
+    actor J as 📱 กรรมการ
+
+    A->>S: สร้างการแข่งขัน (draft)
+    A->>S: เพิ่มหัวข้อ+น้ำหนัก (validate = 100%)
+    A->>S: เพิ่มผู้เข้าแข่งขัน
+    A->>S: สร้างกรรมการ → gen ลิงก์เฉพาะ
+    A->>S: เปิดแข่ง (status = open)
+    A-->>J: แจกลิงก์เฉพาะ
+
+    J->>S: เปิดลิงก์ (validate token)
+    S-->>J: รายชื่อผู้เข้าแข่ง + หัวข้อ
+    loop แต่ละทีม/หัวข้อ
+        J->>S: กรอกคะแนน 0–5 (auto-save)
+    end
+
+    A->>S: ล็อก (status = closed)
+    S-->>A: ตารางผล + breakdown + อันดับ
+    A->>S: Export Excel
+```
 
 ### 5.1 Admin ตั้งค่า
 1. Login → สร้างการแข่งขัน (status=draft)

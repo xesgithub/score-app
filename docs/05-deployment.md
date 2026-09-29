@@ -8,12 +8,17 @@
 แอปถูกแพ็กเป็น **Docker image เดียว** (backend เสิร์ฟทั้ง API และ frontend static) แล้ว deploy บน
 **Azure Container Apps (ACA)** โดยข้อมูล SQLite เก็บบน **Azure Files** (persistent) — ข้อมูลไม่หายแม้ scale-to-zero
 
-```
-ผู้ใช้ ──HTTPS──> Azure Container Apps (score-app)
-                    - container: node:22-slim
-                    - Express เสิร์ฟ /api + frontend static (./public)
-                    - mount Azure Files ที่ /data (SQLite prod.db)
-                  image ดึงจาก ──> Azure Container Registry (ACR)
+```mermaid
+flowchart LR
+    User["👤 ผู้ใช้ (Admin / กรรมการ)"]
+    subgraph Azure["☁️ Azure (rg-score-app)"]
+        ACA["🚀 Container App: score-app<br/>node:22-slim · Express<br/>API + frontend static · port 8080"]
+        Files[("📁 Azure Files<br/>scoreapp-data<br/>/data/prod.db (SQLite)")]
+        ACR["📦 ACR: acrscoreapp6182<br/>image score-app:vN"]
+    end
+    User -- HTTPS --> ACA
+    ACA -- "mount /data (nobrl)" --> Files
+    ACR -. pull image .-> ACA
 ```
 
 ## 2. Azure Resources (ทั้งหมดอยู่ใน Resource Group เดียว)
@@ -81,13 +86,15 @@ az acr build --registry <acrname> --image score-app:v1 --no-logs .
 # แล้ว update ด้วย app.yaml ที่มี volume mount /data + mountOptions nobrl
 ```
 
-## 6. ข้อจำกัดและบทเรียน (สำคัญ — อ่านก่อนแก้)
+## 6. ⚠️ ข้อจำกัดและบทเรียน (สำคัญ — อ่านก่อนแก้)
 
 ### 6.1 SQLite + Azure Files → ต้องใช้ `nobrl`
-- Azure Files เป็น SMB share ซึ่ง **ไม่รองรับ byte-range lock** ที่ SQLite ใช้ → เจอ error `database is locked`
-- แก้ด้วย mount option **`nobrl`** (ปิด byte-range lock)
-- **ผลข้างเคียง:** ปลอดภัยเฉพาะเมื่อมี **ตัวเขียน DB ตัวเดียว** → จึงต้องล็อก `maxReplicas=1`
-  ห้ามเพิ่ม replica เกิน 1 (เสี่ยง data corruption)
+
+> [!WARNING]
+> Azure Files เป็น SMB share ซึ่ง **ไม่รองรับ byte-range lock** ที่ SQLite ใช้ → เจอ error `database is locked`
+> **แก้:** mount option **`nobrl`** (ปิด byte-range lock)
+> **ผลข้างเคียง:** ปลอดภัยเฉพาะเมื่อมี **ตัวเขียน DB ตัวเดียว** → ต้องล็อก **`maxReplicas=1`**
+> ห้ามเพิ่ม replica เกิน 1 (เสี่ยง data corruption)
 - เหมาะกับโหลดต่ำ (กรรมการ+admin < 10, ทีม ≤ 20) ซึ่งตรงกับ use case จริง
 - ถ้าต้องการหลาย replica / โหลดสูง → ต้องย้ายไป PostgreSQL (มีค่าใช้จ่าย)
 
@@ -104,8 +111,10 @@ az acr build --registry <acrname> --image score-app:v1 --no-logs .
 - crash เรื่อง encoding + ManagedEnvironmentNotFound → เลี่ยงไปใช้ `az acr build` แล้ว deploy จาก image แทน
 
 ### 6.5 Database เป็น ephemeral ไหม?
-- **ไม่** — ข้อมูลอยู่บน Azure Files (persistent) แม้ scale-to-zero หรือ container restart ข้อมูลคงอยู่
-- แต่ scale-from-zero (ครั้งแรกหลังไม่มีทราฟฟิกนาน) จะรอ container start ~10–30 วิ
+
+> [!TIP]
+> **ไม่** — ข้อมูลอยู่บน Azure Files (persistent) แม้ scale-to-zero หรือ container restart ข้อมูลคงอยู่
+> แต่ scale-from-zero (ครั้งแรกหลังไม่มีทราฟฟิกนาน) จะรอ container start ~10–30 วิ
 
 ## 7. ค่าใช้จ่าย
 
