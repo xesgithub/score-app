@@ -34,3 +34,11 @@ Thumbs.db
 *.tsbuildinfo
 dist-tsnode/
 **/dist-tsnode/
+
+# azure deploy temp / secrets (ห้าม commit)
+sa_key.txt
+sa_name.txt
+az_*.json
+az_*.txt
+*_out.json
+*_err.txt

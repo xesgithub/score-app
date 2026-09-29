@@ -1,0 +1,10 @@
+**/node_modules
+**/dist
+**/dist-tsnode
+**/*.db
+**/*.db-journal
+**/.env
+.git
+.gitignore
+*.log
+docs
