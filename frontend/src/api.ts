@@ -80,6 +80,7 @@ export const adminApi = {
   deleteCompetitor: (id: string) => req<void>(`/admin/competitors/${id}`, { method: 'DELETE' }),
   addJudge: (id: string, data: { label: string }) =>
     req<Judge>(`/admin/competitions/${id}/judges`, { method: 'POST', body: JSON.stringify(data) }),
+  deleteJudge: (id: string) => req<void>(`/admin/judges/${id}`, { method: 'DELETE' }),
   getJudgeLink: (id: string) => req<{ url: string; token: string }>(`/admin/judges/${id}/link`),
   getResults: (id: string) => req<ResultsResponse>(`/admin/competitions/${id}/results`),
 };

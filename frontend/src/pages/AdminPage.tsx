@@ -102,7 +102,9 @@ export default function AdminPage() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold">{selected.name}</h2>
             <div className="flex gap-2 items-center">
-              <span className="text-sm px-2 py-1 bg-gray-100 rounded">สถานะ: {selected.status}</span>
+              <span className="text-sm px-2 py-1 bg-gray-100 rounded">
+                สถานะ: {selected.status === 'closed' ? '🔒 ล็อกแล้ว' : selected.status}
+              </span>
               {selected.status === 'draft' && (
                 <button
                   className="bg-green-600 text-white px-3 py-1 rounded text-sm"
@@ -116,7 +118,15 @@ export default function AdminPage() {
                   className="bg-orange-600 text-white px-3 py-1 rounded text-sm"
                   onClick={() => run(() => adminApi.updateCompetition(selected.id, { status: 'closed' }))}
                 >
-                  ปิดแข่ง
+                  🔒 ล็อก (ปิดรับคะแนน)
+                </button>
+              )}
+              {selected.status === 'closed' && (
+                <button
+                  className="bg-blue-600 text-white px-3 py-1 rounded text-sm"
+                  onClick={() => run(() => adminApi.updateCompetition(selected.id, { status: 'open' }))}
+                >
+                  🔓 ปลดล็อก (แก้ไขต่อ)
                 </button>
               )}
               <Link
@@ -224,17 +234,38 @@ export default function AdminPage() {
                 <li key={j.id} className="border-b py-2 text-sm">
                   <div className="flex justify-between items-center">
                     <span>{j.label}</span>
-                    <button
-                      className="text-blue-600"
-                      onClick={() =>
-                        run(async () => {
-                          const link = await adminApi.getJudgeLink(j.id);
-                          setLinks((prev) => ({ ...prev, [j.id]: link.url }));
-                        })
-                      }
-                    >
-                      แสดงลิงก์
-                    </button>
+                    <div className="flex gap-3 items-center">
+                      <button
+                        className="text-blue-600"
+                        onClick={() =>
+                          run(async () => {
+                            // toggle: ถ้าแสดงอยู่แล้วให้ซ่อน
+                            if (links[j.id]) {
+                              setLinks((prev) => {
+                                const next = { ...prev };
+                                delete next[j.id];
+                                return next;
+                              });
+                              return;
+                            }
+                            const link = await adminApi.getJudgeLink(j.id);
+                            setLinks((prev) => ({ ...prev, [j.id]: link.url }));
+                          })
+                        }
+                      >
+                        {links[j.id] ? 'ซ่อนลิงก์' : 'แสดงลิงก์'}
+                      </button>
+                      <button
+                        className="text-red-600"
+                        onClick={() => {
+                          if (confirm(`ลบ "${j.label}"? คะแนนที่กรรมการคนนี้ให้ไว้จะถูกลบด้วย`)) {
+                            run(() => adminApi.deleteJudge(j.id));
+                          }
+                        }}
+                      >
+                        ลบ
+                      </button>
+                    </div>
                   </div>
                   {links[j.id] && (
                     <div className="mt-1 bg-gray-50 p-2 rounded flex gap-2 items-center">

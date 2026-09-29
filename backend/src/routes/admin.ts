@@ -183,6 +183,12 @@ router.post('/judges/:id/revoke-token', async (req, res) => {
   res.json(judge);
 });
 
+// ลบกรรมการ (คะแนนของกรรมการคนนี้ถูกลบตาม onDelete: Cascade)
+router.delete('/judges/:id', async (req, res) => {
+  await prisma.judge.delete({ where: { id: req.params.id } });
+  res.status(204).end();
+});
+
 // ---------- Results / Progress ----------
 
 router.get('/competitions/:id/results', async (req, res) => {
