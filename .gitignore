@@ -42,3 +42,9 @@ az_*.json
 az_*.txt
 *_out.json
 *_err.txt
+
+# azure deploy generated
+app.yaml
+*.txt
+sa_key.txt
+sa_name.txt
