@@ -53,7 +53,8 @@ export default function JudgePage() {
   function setScore(competitorId: string, criterionId: string, raw: string) {
     let v = parseFloat(raw);
     if (isNaN(v)) return;
-    v = Math.min(5, Math.max(0, Math.round(v * 100) / 100));
+    // จำนวนเต็ม 0–5
+    v = Math.min(5, Math.max(0, Math.round(v)));
     setScores((prev) => ({
       ...prev,
       [competitorId]: { ...(prev[competitorId] ?? {}), [criterionId]: v },
@@ -123,16 +124,16 @@ export default function JudgePage() {
                   type="number"
                   min={0}
                   max={5}
-                  step={0.01}
+                  step={1}
                   className="border rounded px-3 py-2 w-24 text-right"
                   value={scores[active.id]?.[cr.id] ?? ''}
                   onChange={(e) => setScore(active.id, cr.id, e.target.value)}
-                  placeholder="0.00"
+                  placeholder="0"
                 />
               </div>
             ))}
           </div>
-          <p className="text-xs text-gray-400 mt-3">คะแนนแต่ละหัวข้อ 0.00 – 5.00 · บันทึกอัตโนมัติ</p>
+          <p className="text-xs text-gray-400 mt-3">คะแนนแต่ละหัวข้อ 0 – 5 · บันทึกอัตโนมัติ</p>
           <p className="text-sm text-green-600 h-5 mt-1">{saveState}</p>
         </div>
       )}

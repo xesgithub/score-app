@@ -66,10 +66,10 @@ router.put('/scores', async (req, res) => {
     return res.status(400).json({ error: 'competitorId, criterionId, value (number) จำเป็น' });
   }
   if (value < 0 || value > 5) {
-    return res.status(400).json({ error: 'คะแนนต้องอยู่ในช่วง 0.00 - 5.00' });
+    return res.status(400).json({ error: 'คะแนนต้องอยู่ในช่วง 0 - 5' });
   }
-  // ปัดทศนิยม 2 ตำแหน่ง
-  const rounded = Math.round(value * 100) / 100;
+  // จำนวนเต็ม 0–5
+  const rounded = Math.round(value);
 
   // ตรวจว่า criterion/competitor อยู่ในการแข่งขันเดียวกับกรรมการ
   const [criterion, competitor] = await Promise.all([

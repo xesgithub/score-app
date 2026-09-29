@@ -41,7 +41,7 @@ Competition (การแข่งขัน)
   description
   event_date
   status            -- draft | open | closed
-  score_step        -- = 0.01 (คะแนนละเอียดทศนิยม 2 ตำแหน่ง)
+  score_step        -- = 1 (คะแนนกรรมการเป็นจำนวนเต็ม 0–5)
   created_at, updated_at
 
 Criterion (หัวข้อการให้คะแนน)  -- N ต่อ 1 Competition
@@ -186,6 +186,6 @@ PUT    /api/judge/scores?token=...             บันทึก/แก้ค�
 ## 6. ความปลอดภัยและความถูกต้อง
 
 - **Token กรรมการ:** สุ่ม ≥ 32 ตัวอักษร (crypto-random), unique, เพิกถอนได้
-- **Validation:** คะแนน ∈ [0.00, 5.00] และปัดเป็นทศนิยม 2 ตำแหน่ง (step 0.01); น้ำหนักรวม = 100% เป๊ะ ก่อนเปิดแข่ง
+- **Validation:** คะแนนกรรมการเป็นจำนวนเต็ม ∈ [0, 5]; น้ำหนักรวม = 100% เป๊ะ ก่อนเปิดแข่ง
 - **Concurrency:** unique constraint (judge, competitor, criterion) + upsert กันข้อมูลชน
 - **Audit:** เก็บ submitted_at / updated_at ของทุกคะแนน
