@@ -32,11 +32,11 @@ COPY backend/prisma ./prisma
 # frontend build -> เสิร์ฟจาก ./public
 COPY --from=frontend /app/frontend/dist ./public
 
-# ข้อมูล SQLite เก็บใน /data (map เป็น persistent volume บน ACA)
-ENV DATABASE_URL="file:/data/prod.db"
+# ข้อมูล SQLite (ephemeral ใน container — demo; ใช้ min-replicas=1 กันรีเซ็ตระหว่างเทส)
+ENV DATABASE_URL="file:./prod.db"
 ENV PORT=8080
 ENV NODE_ENV=production
 EXPOSE 8080
 
-# ตอน start: apply migration (สร้าง/อัปเดต schema ใน /data) แล้วรัน server
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/index.js"]
+# ตอน start: apply migration + seed (idempotent) แล้วรัน server
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/seed.js && node dist/index.js"]
