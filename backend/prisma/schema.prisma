@@ -1,0 +1,78 @@
+// Prisma schema — score-app Demo01
+// DB: SQLite (สลับเป็น PostgreSQL ได้โดยเปลี่ยน provider + DATABASE_URL)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Competition {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  eventDate   DateTime?
+  status      String   @default("draft") // draft | open | closed
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  criteria    Criterion[]
+  competitors Competitor[]
+  judges      Judge[]
+}
+
+model Criterion {
+  id            String   @id @default(cuid())
+  competitionId String
+  name          String
+  weightPercent Float    // น้ำหนัก % — รวมทุกหัวข้อในการแข่งขัน = 100
+  maxScore      Float    @default(5)
+  displayOrder  Int      @default(0)
+
+  competition   Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  scores        Score[]
+}
+
+model Competitor {
+  id            String   @id @default(cuid())
+  competitionId String
+  name          String   // ชื่อบุคคลหรือชื่อทีม (นับเป็น 1 entry)
+  bibNumber     String?
+  note          String?
+  isActive      Boolean  @default(true)
+  displayOrder  Int      @default(0)
+
+  competition   Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  scores        Score[]
+}
+
+model Judge {
+  id            String   @id @default(cuid())
+  competitionId String
+  label         String   // เช่น "กรรมการ 1"
+  accessToken   String   @unique
+  tokenRevoked  Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  competition   Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  scores        Score[]
+}
+
+model Score {
+  id           String   @id @default(cuid())
+  judgeId      String
+  competitorId String
+  criterionId  String
+  value        Float    // 0.00 - 5.00
+  submittedAt  DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  judge        Judge      @relation(fields: [judgeId], references: [id], onDelete: Cascade)
+  competitor   Competitor @relation(fields: [competitorId], references: [id], onDelete: Cascade)
+  criterion    Criterion  @relation(fields: [criterionId], references: [id], onDelete: Cascade)
+
+  @@unique([judgeId, competitorId, criterionId])
+}

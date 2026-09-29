@@ -1,0 +1,24 @@
+import express from 'express';
+import cors from 'cors';
+import adminRoutes from './routes/admin';
+import judgeRoutes from './routes/judge';
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+app.get('/api/health', (_req, res) => res.json({ ok: true }));
+
+app.use('/api/admin', adminRoutes);
+app.use('/api/judge', judgeRoutes);
+
+// error handler กันเคส exception หลุด
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error(err);
+  res.status(500).json({ error: 'internal server error', detail: String(err?.message ?? err) });
+});
+
+const PORT = Number(process.env.PORT ?? 4000);
+app.listen(PORT, () => {
+  console.log(`score-app backend running on http://localhost:${PORT}`);
+});

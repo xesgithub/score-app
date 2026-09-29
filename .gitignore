@@ -1,0 +1,36 @@
+# dependencies
+node_modules/
+**/node_modules/
+
+# build output
+dist/
+build/
+**/dist/
+**/build/
+
+# env
+.env
+**/.env
+!.env.example
+
+# database (SQLite)
+*.db
+*.db-journal
+**/*.db
+**/*.db-journal
+backend/prisma/dev.db*
+
+# logs
+*.log
+npm-debug.log*
+
+# editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# misc
+*.tsbuildinfo
+dist-tsnode/
+**/dist-tsnode/
