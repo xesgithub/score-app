@@ -11,7 +11,6 @@ export default function JudgePage() {
   // scores[competitorId][criterionId] = value
   const [scores, setScores] = useState<Record<string, Record<string, number>>>({});
   const [saveState, setSaveState] = useState<string>('');
-  const [activeCompetitor, setActiveCompetitor] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) {
@@ -22,7 +21,6 @@ export default function JudgePage() {
       try {
         const s = await judgeApi.session(token);
         setSession(s);
-        setActiveCompetitor(s.competitors[0]?.id ?? null);
         const existing = await judgeApi.getScores(token);
         const map: Record<string, Record<string, number>> = {};
         for (const sc of existing.scores) {
@@ -42,7 +40,7 @@ export default function JudgePage() {
       try {
         await judgeApi.saveScore(token, { competitorId, criterionId, value });
         setSaveState('บันทึกแล้ว ✓');
-        setTimeout(() => setSaveState(''), 1500);
+        setTimeout(() => setSaveState(''), 1200);
       } catch (e: any) {
         setSaveState('บันทึกไม่สำเร็จ: ' + e.message);
       }
@@ -50,8 +48,10 @@ export default function JudgePage() {
     [token]
   );
 
-  function setScoreValue(competitorId: string, criterionId: string, value: number) {
-    const v = Math.min(5, Math.max(0, Math.round(value)));
+  function setScoreValue(competitorId: string, criterionId: string, raw: string) {
+    let v = parseInt(raw, 10);
+    if (isNaN(v)) v = 0;
+    v = Math.min(5, Math.max(0, v));
     setScores((prev) => ({
       ...prev,
       [competitorId]: { ...(prev[competitorId] ?? {}), [criterionId]: v },
@@ -71,82 +71,84 @@ export default function JudgePage() {
     );
   }
 
-  const active = session.competitors.find((c) => c.id === activeCompetitor);
-
-  // นับความครบของแต่ละทีม (ของกรรมการคนนี้)
-  function isComplete(competitorId: string) {
+  // คะแนนถ่วงน้ำหนักของทีม (Total) — Σ (คะแนนหัวข้อ × น้ำหนัก/100), เต็ม 5
+  function total(competitorId: string): number {
     const s = scores[competitorId] ?? {};
-    return session!.criteria.every((c) => s[c.id] !== undefined);
+    let sum = 0;
+    for (const cr of session!.criteria) {
+      const v = s[cr.id] ?? 0;
+      sum += v * (cr.weightPercent / 100);
+    }
+    return Math.round(sum * 100) / 100;
   }
 
   return (
-    <div className="max-w-3xl mx-auto p-4">
-      <div className="mb-4">
-        <h1 className="text-xl font-bold">{session.competition.name}</h1>
-        <p className="text-sm text-gray-500">
-          กรรมการ: <span className="font-medium">{session.judge.label}</span>
-        </p>
+    <div className="max-w-6xl mx-auto p-4">
+      <h1 className="text-lg font-bold text-gray-700 mb-3">ตารางให้คะแนนของคุณ</h1>
+
+      {/* แถบกรรมการ */}
+      <div className="bg-gray-50 border rounded-t-lg px-4 py-3 flex items-center gap-3">
+        <span className="text-sm text-gray-600">กรรมการ:</span>
+        <span className="border rounded px-3 py-1 bg-white font-medium text-sm">
+          {session.judge.label}
+        </span>
+        <span className="text-sm text-green-600 ml-auto h-5">{saveState}</span>
       </div>
 
-      {/* เลือกทีม */}
-      <div className="flex flex-wrap gap-2 mb-4">
-        {session.competitors.map((c) => (
-          <button
-            key={c.id}
-            onClick={() => setActiveCompetitor(c.id)}
-            className={`px-3 py-1 rounded border text-sm ${
-              activeCompetitor === c.id ? 'bg-blue-600 text-white' : 'bg-white'
-            }`}
-          >
-            {isComplete(c.id) ? '✓ ' : ''}
-            {c.bibNumber ? `#${c.bibNumber} ` : ''}
-            {c.name}
-          </button>
-        ))}
-      </div>
-
-      {active && (
-        <div className="border rounded-lg p-4 bg-white">
-          <h2 className="font-semibold mb-4">
-            ให้คะแนน: {active.bibNumber ? `#${active.bibNumber} ` : ''}
-            {active.name}
-          </h2>
-          <div className="space-y-4">
-            {session.criteria.map((cr) => {
-              const current = scores[active.id]?.[cr.id];
-              return (
-                <div
-                  key={cr.id}
-                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b pb-3 last:border-0"
-                >
-                  <label className="text-sm font-medium sm:w-1/2">
-                    {cr.name}{' '}
-                    <span className="text-gray-400 font-normal">({cr.weightPercent}%)</span>
-                  </label>
-                  {/* ปุ่มเลือกคะแนน 0-5 (แนวนอน) */}
-                  <div className="flex gap-1.5">
-                    {[0, 1, 2, 3, 4, 5].map((n) => (
-                      <button
-                        key={n}
-                        onClick={() => setScoreValue(active.id, cr.id, n)}
-                        className={`w-10 h-10 rounded-lg border text-base font-semibold transition ${
-                          current === n
-                            ? 'bg-blue-600 text-white border-blue-600'
-                            : 'bg-white text-gray-700 hover:bg-blue-50'
-                        }`}
-                      >
-                        {n}
-                      </button>
-                    ))}
+      {/* ตารางให้คะแนน */}
+      <div className="overflow-x-auto border border-t-0 rounded-b-lg bg-white">
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr className="bg-gray-100 text-gray-700">
+              <th className="p-2 border-b border-r w-14 text-center">No.</th>
+              <th className="p-2 border-b border-r text-left min-w-[120px]">Name</th>
+              {session.criteria.map((cr) => (
+                <th key={cr.id} className="p-2 border-b border-r text-center min-w-[130px]">
+                  <div className="font-semibold">{cr.name}</div>
+                  <div className="text-xs text-blue-600 font-normal mt-1">
+                    {cr.weightPercent}% · เต็ม 5
                   </div>
-                </div>
-              );
-            })}
-          </div>
-          <p className="text-xs text-gray-400 mt-3">แตะเลือกคะแนน 0 – 5 · บันทึกอัตโนมัติ</p>
-          <p className="text-sm text-green-600 h-5 mt-1">{saveState}</p>
-        </div>
-      )}
+                </th>
+              ))}
+              <th className="p-2 border-b text-center min-w-[90px]">
+                <div className="font-bold">Total</div>
+                <div className="text-xs text-gray-400 font-normal">(เต็ม 5)</div>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {session.competitors.map((c, idx) => (
+              <tr key={c.id} className="hover:bg-blue-50/40">
+                <td className="p-2 border-b border-r text-center text-gray-600">{idx + 1}</td>
+                <td className="p-2 border-b border-r font-medium">
+                  {c.bibNumber ? <span className="text-gray-400">#{c.bibNumber} </span> : ''}
+                  {c.name}
+                </td>
+                {session.criteria.map((cr) => (
+                  <td key={cr.id} className="p-2 border-b border-r text-center">
+                    <input
+                      type="number"
+                      min={0}
+                      max={5}
+                      step={1}
+                      className="border rounded w-16 py-1 text-center focus:ring-2 focus:ring-blue-400 outline-none"
+                      value={scores[c.id]?.[cr.id] ?? 0}
+                      onChange={(e) => setScoreValue(c.id, cr.id, e.target.value)}
+                    />
+                  </td>
+                ))}
+                <td className="p-2 border-b text-center font-bold text-blue-700 font-mono">
+                  {total(c.id).toFixed(2)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <p className="text-xs text-gray-400 mt-3">
+        กรอกคะแนนแต่ละหัวข้อ 0 – 5 · Total คำนวณถ่วงน้ำหนักอัตโนมัติ · บันทึกทันทีที่แก้ไข
+      </p>
     </div>
   );
 }
