@@ -48,10 +48,8 @@ export default function JudgePage() {
     [token]
   );
 
-  function setScoreValue(competitorId: string, criterionId: string, raw: string) {
-    let v = parseInt(raw, 10);
-    if (isNaN(v)) v = 0;
-    v = Math.min(5, Math.max(0, v));
+  function setScoreValue(competitorId: string, criterionId: string, value: number) {
+    const v = Math.min(5, Math.max(0, Math.round(value)));
     setScores((prev) => ({
       ...prev,
       [competitorId]: { ...(prev[competitorId] ?? {}), [criterionId]: v },
@@ -124,19 +122,28 @@ export default function JudgePage() {
                   {c.bibNumber ? <span className="text-gray-400">#{c.bibNumber} </span> : ''}
                   {c.name}
                 </td>
-                {session.criteria.map((cr) => (
-                  <td key={cr.id} className="p-2 border-b border-r text-center">
-                    <input
-                      type="number"
-                      min={0}
-                      max={5}
-                      step={1}
-                      className="border rounded w-16 py-1 text-center focus:ring-2 focus:ring-blue-400 outline-none"
-                      value={scores[c.id]?.[cr.id] ?? 0}
-                      onChange={(e) => setScoreValue(c.id, cr.id, e.target.value)}
-                    />
-                  </td>
-                ))}
+                {session.criteria.map((cr) => {
+                  const current = scores[c.id]?.[cr.id];
+                  return (
+                    <td key={cr.id} className="p-2 border-b border-r text-center">
+                      <div className="inline-flex rounded-md overflow-hidden border border-gray-300">
+                        {[0, 1, 2, 3, 4, 5].map((n) => (
+                          <button
+                            key={n}
+                            onClick={() => setScoreValue(c.id, cr.id, n)}
+                            className={`w-7 h-8 text-sm font-semibold border-r last:border-r-0 border-gray-300 transition ${
+                              current === n
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-white text-gray-600 hover:bg-blue-50'
+                            }`}
+                          >
+                            {n}
+                          </button>
+                        ))}
+                      </div>
+                    </td>
+                  );
+                })}
                 <td className="p-2 border-b text-center font-bold text-blue-700 font-mono">
                   {total(c.id).toFixed(2)}
                 </td>
