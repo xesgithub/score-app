@@ -32,8 +32,8 @@ COPY backend/prisma ./prisma
 # frontend build -> เสิร์ฟจาก ./public
 COPY --from=frontend /app/frontend/dist ./public
 
-# ข้อมูล SQLite (ephemeral ใน container — demo; ใช้ min-replicas=1 กันรีเซ็ตระหว่างเทส)
-ENV DATABASE_URL="file:./prod.db"
+# ข้อมูล SQLite เก็บบน Azure Files ที่ mount ไว้ /data (mount option nobrl) — ถาวรแม้ scale-to-zero
+ENV DATABASE_URL="file:/data/prod.db"
 ENV PORT=8080
 ENV NODE_ENV=production
 EXPOSE 8080

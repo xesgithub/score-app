@@ -1,8 +1,6 @@
 // Seed สำหรับ production (คอมไพล์เป็น dist/seed.js) — idempotent: seed เฉพาะตอน DB ว่าง
-import { PrismaClient } from '@prisma/client';
 import { randomBytes } from 'crypto';
-
-const prisma = new PrismaClient();
+import { prisma } from './prisma';
 
 function token() {
   return randomBytes(24).toString('base64url');
