@@ -1,15 +1,30 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   adminApi,
   type Competition,
 } from '../api';
 
+const STATUS_LABEL: Record<string, string> = {
+  draft: 'ร่าง',
+  open: 'เปิดรับคะแนน',
+  closed: '🔒 ล็อกแล้ว',
+};
+const STATUS_STYLE: Record<string, string> = {
+  draft: 'bg-gray-100 text-gray-700',
+  open: 'bg-green-100 text-green-700',
+  closed: 'bg-orange-100 text-orange-700',
+};
+
 export default function AdminPage() {
   const [competitions, setCompetitions] = useState<Competition[]>([]);
   const [selected, setSelected] = useState<Competition | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const fileInput = useRef<HTMLInputElement>(null);
 
   // form states
   const [newName, setNewName] = useState('');
@@ -49,6 +64,40 @@ export default function AdminPage() {
   const totalWeight =
     selected?.criteria?.reduce((s, c) => s + c.weightPercent, 0) ?? 0;
 
+  const filtered = competitions.filter(
+    (c) =>
+      (statusFilter === 'all' || c.status === statusFilter) &&
+      c.name.toLowerCase().includes(search.trim().toLowerCase())
+  );
+
+  async function handleImport(file: File | undefined) {
+    if (!file) return;
+    setNotice(null);
+    await run(async () => {
+      const r = await adminApi.importCompetition(file);
+      setNotice(`นำเข้า "${r.name}" สำเร็จ (${r.scoreCount} คะแนน) — ลิงก์กรรมการถูกสร้างใหม่ ต้องแจกใหม่`);
+      await selectCompetition(r.id);
+    });
+    if (fileInput.current) fileInput.current.value = '';
+  }
+
+  async function handleDelete(c: Competition) {
+    if (!confirm(`ลบการแข่งขัน "${c.name}"?\nคะแนน ผู้เข้าแข่งขัน และกรรมการทั้งหมดจะถูกลบถาวร\n(แนะนำให้ Export Excel เก็บไว้ก่อน)`)) return;
+    setNotice(null);
+    setError(null);
+    setLoading(true);
+    try {
+      await adminApi.deleteCompetition(c.id);
+      if (selected?.id === c.id) setSelected(null);
+      await refreshList();
+      setNotice(`ลบ "${c.name}" แล้ว`);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="max-w-4xl mx-auto p-6">
       <h1 className="text-2xl font-bold mb-1">ระบบให้คะแนนการแข่งขัน — Admin</h1>
@@ -57,11 +106,34 @@ export default function AdminPage() {
       {error && (
         <div className="bg-red-100 text-red-700 px-4 py-2 rounded mb-4 text-sm">{error}</div>
       )}
+      {notice && (
+        <div className="bg-green-100 text-green-700 px-4 py-2 rounded mb-4 text-sm">{notice}</div>
+      )}
 
-      {/* สร้างการแข่งขันใหม่ */}
+      {/* รายการการแข่งขัน */}
       <section className="border rounded-lg p-4 mb-6 bg-white">
-        <h2 className="font-semibold mb-3">การแข่งขัน</h2>
-        <div className="flex gap-2 mb-4">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-semibold">การแข่งขันทั้งหมด ({competitions.length})</h2>
+          <div>
+            <input
+              ref={fileInput}
+              type="file"
+              accept=".xlsx"
+              className="hidden"
+              onChange={(e) => handleImport(e.target.files?.[0])}
+            />
+            <button
+              className="border border-blue-600 text-blue-600 px-3 py-1.5 rounded text-sm disabled:opacity-50"
+              disabled={loading}
+              onClick={() => fileInput.current?.click()}
+            >
+              ⬆ Import Excel
+            </button>
+          </div>
+        </div>
+
+        {/* สร้างใหม่ */}
+        <div className="flex gap-2 mb-3">
           <input
             className="border rounded px-3 py-2 flex-1"
             placeholder="ชื่อการแข่งขันใหม่"
@@ -82,18 +154,85 @@ export default function AdminPage() {
             สร้าง
           </button>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {competitions.map((c) => (
-            <button
-              key={c.id}
-              onClick={() => selectCompetition(c.id)}
-              className={`px-3 py-1 rounded border text-sm ${
-                selected?.id === c.id ? 'bg-blue-600 text-white' : 'bg-gray-50'
-              }`}
-            >
-              {c.name} <span className="opacity-70">({c.status})</span>
-            </button>
-          ))}
+
+        {/* ค้นหา / กรอง */}
+        <div className="flex gap-2 mb-3">
+          <input
+            className="border rounded px-3 py-1.5 flex-1 text-sm"
+            placeholder="🔍 ค้นหาชื่อการแข่งขัน"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <select
+            className="border rounded px-2 py-1.5 text-sm"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="all">ทุกสถานะ</option>
+            <option value="draft">ร่าง</option>
+            <option value="open">เปิดรับคะแนน</option>
+            <option value="closed">ล็อกแล้ว</option>
+          </select>
+        </div>
+
+        <div className="max-h-80 overflow-y-auto border rounded">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 sticky top-0">
+              <tr className="text-left text-gray-600">
+                <th className="p-2">ชื่อ</th>
+                <th className="p-2 w-32">สถานะ</th>
+                <th className="p-2 w-40 text-center">ทีม / กรรมการ / หัวข้อ</th>
+                <th className="p-2 w-28">สร้างเมื่อ</th>
+                <th className="p-2 w-36 text-right">จัดการ</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="p-4 text-center text-gray-400">
+                    ไม่พบการแข่งขัน
+                  </td>
+                </tr>
+              )}
+              {filtered.map((c) => (
+                <tr
+                  key={c.id}
+                  onClick={() => selectCompetition(c.id)}
+                  className={`border-t cursor-pointer ${selected?.id === c.id ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                >
+                  <td className="p-2 font-medium">{c.name}</td>
+                  <td className="p-2">
+                    <span className={`px-2 py-0.5 rounded text-xs ${STATUS_STYLE[c.status] ?? ''}`}>
+                      {STATUS_LABEL[c.status] ?? c.status}
+                    </span>
+                  </td>
+                  <td className="p-2 text-center text-gray-600">
+                    {c._count ? `${c._count.competitors} / ${c._count.judges} / ${c._count.criteria}` : '-'}
+                  </td>
+                  <td className="p-2 text-gray-500 text-xs">
+                    {c.createdAt ? new Date(c.createdAt).toLocaleDateString('th-TH') : '-'}
+                  </td>
+                  <td className="p-2 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                    <a
+                      href={adminApi.exportUrl(c.id)}
+                      className="text-green-700 hover:underline mr-3"
+                      title="ดาวน์โหลดผลเป็น Excel"
+                    >
+                      Excel
+                    </a>
+                    <button
+                      className="text-red-600 hover:underline disabled:text-gray-300 disabled:no-underline"
+                      disabled={c.status !== 'closed' || loading}
+                      title={c.status !== 'closed' ? 'ต้องล็อกการแข่งขันก่อนจึงจะลบได้' : 'ลบการแข่งขัน'}
+                      onClick={() => handleDelete(c)}
+                    >
+                      ลบ
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </section>
 
@@ -135,6 +274,21 @@ export default function AdminPage() {
               >
                 ดูผล/อันดับ
               </Link>
+              <a
+                href={adminApi.exportUrl(selected.id)}
+                className="bg-green-700 text-white px-3 py-1 rounded text-sm"
+              >
+                ⬇ Export Excel
+              </a>
+              {selected.status === 'closed' && (
+                <button
+                  className="bg-red-600 text-white px-3 py-1 rounded text-sm disabled:opacity-50"
+                  disabled={loading}
+                  onClick={() => handleDelete(selected)}
+                >
+                  ลบการแข่งขัน
+                </button>
+              )}
             </div>
           </div>
 

@@ -38,9 +38,11 @@ export interface Competition {
   name: string;
   description?: string | null;
   status: string;
+  createdAt?: string;
   criteria?: Criterion[];
   competitors?: Competitor[];
   judges?: Judge[];
+  _count?: { competitors: number; judges: number; criteria: number };
 }
 
 export interface JudgeBreakdown {
@@ -83,6 +85,18 @@ export const adminApi = {
   deleteJudge: (id: string) => req<void>(`/admin/judges/${id}`, { method: 'DELETE' }),
   getJudgeLink: (id: string) => req<{ url: string; token: string }>(`/admin/judges/${id}/link`),
   getResults: (id: string) => req<ResultsResponse>(`/admin/competitions/${id}/results`),
+  deleteCompetition: (id: string) => req<void>(`/admin/competitions/${id}`, { method: 'DELETE' }),
+  exportUrl: (id: string) => `${BASE}/admin/competitions/${id}/export`,
+  importCompetition: async (file: File) => {
+    const res = await fetch(`${BASE}/admin/competitions/import`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/octet-stream' },
+      body: file,
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+    return body as { id: string; name: string; scoreCount: number };
+  },
 };
 
 // ---------- Judge ----------

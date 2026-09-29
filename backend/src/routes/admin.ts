@@ -1,7 +1,8 @@
-import { Router } from 'express';
+import express, { Router } from 'express';
 import { prisma } from '../prisma';
 import { generateToken } from '../token';
 import { computeResults } from '../scoring';
+import { exportCompetition, importCompetition, ImportError } from '../excel';
 
 const router = Router();
 
@@ -74,6 +75,50 @@ router.patch('/competitions/:id', async (req, res) => {
   });
   res.json(competition);
 });
+
+// ลบการแข่งขัน — อนุญาตเฉพาะเมื่อล็อกแล้ว (closed) กันลบผิดระหว่างแข่ง
+router.delete('/competitions/:id', async (req, res) => {
+  const competition = await prisma.competition.findUnique({ where: { id: req.params.id } });
+  if (!competition) return res.status(404).json({ error: 'not found' });
+  if (competition.status !== 'closed') {
+    return res.status(409).json({ error: 'ต้องล็อกการแข่งขันก่อนจึงจะลบได้' });
+  }
+  // criteria/competitors/judges/scores ถูกลบตาม onDelete: Cascade
+  await prisma.competition.delete({ where: { id: req.params.id } });
+  res.status(204).end();
+});
+
+// Export เป็น Excel
+router.get('/competitions/:id/export', async (req, res) => {
+  const out = await exportCompetition(req.params.id);
+  if (!out) return res.status(404).json({ error: 'not found' });
+  const safeName = out.name.replace(/[\\/:*?"<>|]/g, '_');
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader(
+    'Content-Disposition',
+    `attachment; filename="competition.xlsx"; filename*=UTF-8''${encodeURIComponent(safeName)}.xlsx`
+  );
+  res.send(out.buffer);
+});
+
+// Import จาก Excel (body = ไฟล์ .xlsx แบบ raw) → สร้างการแข่งขันใหม่
+router.post(
+  '/competitions/import',
+  express.raw({ type: '*/*', limit: '10mb' }),
+  async (req, res) => {
+    if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
+      return res.status(400).json({ error: 'ไม่พบไฟล์' });
+    }
+    try {
+      const result = await importCompetition(req.body);
+      res.status(201).json(result);
+    } catch (e) {
+      if (e instanceof ImportError) return res.status(400).json({ error: e.message });
+      console.error('import error:', e);
+      res.status(500).json({ error: 'นำเข้าไม่สำเร็จ: ' + String((e as Error)?.message ?? e) });
+    }
+  }
+);
 
 // ---------- Criteria ----------
 

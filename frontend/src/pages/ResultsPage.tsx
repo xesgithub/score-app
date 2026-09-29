@@ -40,6 +40,9 @@ export default function ResultsPage() {
           <button className="bg-gray-200 px-3 py-1 rounded text-sm" onClick={load}>
             รีเฟรช
           </button>
+          <a href={adminApi.exportUrl(data.competition.id)} className="bg-green-700 text-white px-3 py-1 rounded text-sm">
+            ⬇ Export Excel
+          </a>
           <Link to="/admin" className="bg-blue-600 text-white px-3 py-1 rounded text-sm">
             กลับ Admin
           </Link>
