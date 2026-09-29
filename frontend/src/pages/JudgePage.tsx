@@ -50,11 +50,8 @@ export default function JudgePage() {
     [token]
   );
 
-  function setScore(competitorId: string, criterionId: string, raw: string) {
-    let v = parseFloat(raw);
-    if (isNaN(v)) return;
-    // จำนวนเต็ม 0–5
-    v = Math.min(5, Math.max(0, Math.round(v)));
+  function setScoreValue(competitorId: string, criterionId: string, value: number) {
+    const v = Math.min(5, Math.max(0, Math.round(value)));
     setScores((prev) => ({
       ...prev,
       [competitorId]: { ...(prev[competitorId] ?? {}), [criterionId]: v },
@@ -83,7 +80,7 @@ export default function JudgePage() {
   }
 
   return (
-    <div className="max-w-lg mx-auto p-4">
+    <div className="max-w-3xl mx-auto p-4">
       <div className="mb-4">
         <h1 className="text-xl font-bold">{session.competition.name}</h1>
         <p className="text-sm text-gray-500">
@@ -110,30 +107,43 @@ export default function JudgePage() {
 
       {active && (
         <div className="border rounded-lg p-4 bg-white">
-          <h2 className="font-semibold mb-3">
+          <h2 className="font-semibold mb-4">
             ให้คะแนน: {active.bibNumber ? `#${active.bibNumber} ` : ''}
             {active.name}
           </h2>
-          <div className="space-y-3">
-            {session.criteria.map((cr) => (
-              <div key={cr.id} className="flex items-center justify-between gap-3">
-                <label className="text-sm flex-1">
-                  {cr.name} <span className="text-gray-400">({cr.weightPercent}%)</span>
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  max={5}
-                  step={1}
-                  className="border rounded px-3 py-2 w-24 text-right"
-                  value={scores[active.id]?.[cr.id] ?? ''}
-                  onChange={(e) => setScore(active.id, cr.id, e.target.value)}
-                  placeholder="0"
-                />
-              </div>
-            ))}
+          <div className="space-y-4">
+            {session.criteria.map((cr) => {
+              const current = scores[active.id]?.[cr.id];
+              return (
+                <div
+                  key={cr.id}
+                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b pb-3 last:border-0"
+                >
+                  <label className="text-sm font-medium sm:w-1/2">
+                    {cr.name}{' '}
+                    <span className="text-gray-400 font-normal">({cr.weightPercent}%)</span>
+                  </label>
+                  {/* ปุ่มเลือกคะแนน 0-5 (แนวนอน) */}
+                  <div className="flex gap-1.5">
+                    {[0, 1, 2, 3, 4, 5].map((n) => (
+                      <button
+                        key={n}
+                        onClick={() => setScoreValue(active.id, cr.id, n)}
+                        className={`w-10 h-10 rounded-lg border text-base font-semibold transition ${
+                          current === n
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'bg-white text-gray-700 hover:bg-blue-50'
+                        }`}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
-          <p className="text-xs text-gray-400 mt-3">คะแนนแต่ละหัวข้อ 0 – 5 · บันทึกอัตโนมัติ</p>
+          <p className="text-xs text-gray-400 mt-3">แตะเลือกคะแนน 0 – 5 · บันทึกอัตโนมัติ</p>
           <p className="text-sm text-green-600 h-5 mt-1">{saveState}</p>
         </div>
       )}
