@@ -215,7 +215,9 @@ router.post('/competitions/:id/judges', async (req, res) => {
 router.get('/judges/:id/link', async (req, res) => {
   const judge = await prisma.judge.findUnique({ where: { id: req.params.id } });
   if (!judge) return res.status(404).json({ error: 'not found' });
-  const base = process.env.APP_BASE_URL ?? 'http://localhost:5173';
+  // ใช้ APP_BASE_URL ถ้าตั้งไว้; ไม่งั้น derive จาก request (origin เดียวกับ frontend)
+  // backend เสิร์ฟทั้ง API และ frontend จาก origin เดียวกัน ลิงก์จึงตรงกับที่ผู้ใช้เปิดอยู่เสมอ
+  const base = process.env.APP_BASE_URL ?? `${req.protocol}://${req.get('host')}`;
   res.json({ url: `${base}/judge?token=${judge.accessToken}`, token: judge.accessToken });
 });
 

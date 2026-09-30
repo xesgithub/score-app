@@ -6,6 +6,9 @@ import adminRoutes from './routes/admin';
 import judgeRoutes from './routes/judge';
 
 const app = express();
+// เชื่อถือ proxy header (X-Forwarded-Proto) จาก ingress ของ ACA
+// เพื่อให้ req.protocol เป็น https ถูกต้องตอนสร้างลิงก์กรรมการ
+app.set('trust proxy', true);
 app.use(cors());
 app.use(express.json());
 
