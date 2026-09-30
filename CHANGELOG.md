@@ -2,6 +2,21 @@
 
 รูปแบบตาม [Keep a Changelog](https://keepachangelog.com/) และใช้ [Semantic Versioning](https://semver.org/)
 
+## [0.3.0] - 2026-09-30
+
+### Added
+- แก้ไขชื่อได้ในหน้า Admin (inline edit): หัวข้อ+น้ำหนัก, ชื่อ/หมายเลขผู้เข้าแข่ง, ชื่อกรรมการ
+- Backend: `PATCH /admin/judges/:id` สำหรับแก้ชื่อกรรมการ
+- หน้ากรรมการรองรับมือถือ (responsive): เดสก์ท็อปเป็นตาราง, มือถือเป็นการ์ดต่อทีมพร้อมปุ่มคะแนนขนาดใหญ่กดง่าย
+- แจ้งเตือนเมื่อการแข่งขันถูกล็อกระหว่างกรรมการกรอกคะแนน: แบนเนอร์แดงชัดเจน + ปิดการกรอก
+
+### Changed
+- ลิงก์กรรมการอิง origin จาก request (รองรับโดเมน production จริง) แทน fallback `localhost`
+- เปิด `trust proxy` ให้ `req.protocol` เป็น `https` ถูกต้องหลัง ingress ของ Azure Container Apps
+
+### Fixed
+- ลิงก์กรรมการที่คัดลอกจากหน้า Admin บน production ไม่ขึ้นเป็น `localhost` อีกต่อไป
+
 ## [0.2.0] - 2026-09-29
 
 ### Added

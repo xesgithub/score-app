@@ -76,12 +76,18 @@ export const adminApi = {
     req<Competition>(`/admin/competitions/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   addCriterion: (id: string, data: { name: string; weightPercent: number; displayOrder?: number }) =>
     req<Criterion>(`/admin/competitions/${id}/criteria`, { method: 'POST', body: JSON.stringify(data) }),
+  updateCriterion: (id: string, data: { name?: string; weightPercent?: number; displayOrder?: number }) =>
+    req<Criterion>(`/admin/criteria/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteCriterion: (id: string) => req<void>(`/admin/criteria/${id}`, { method: 'DELETE' }),
   addCompetitor: (id: string, data: { name: string; bibNumber?: string; displayOrder?: number }) =>
     req<Competitor>(`/admin/competitions/${id}/competitors`, { method: 'POST', body: JSON.stringify(data) }),
+  updateCompetitor: (id: string, data: { name?: string; bibNumber?: string | null; displayOrder?: number }) =>
+    req<Competitor>(`/admin/competitors/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteCompetitor: (id: string) => req<void>(`/admin/competitors/${id}`, { method: 'DELETE' }),
   addJudge: (id: string, data: { label: string }) =>
     req<Judge>(`/admin/competitions/${id}/judges`, { method: 'POST', body: JSON.stringify(data) }),
+  updateJudge: (id: string, data: { label: string }) =>
+    req<Judge>(`/admin/judges/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteJudge: (id: string) => req<void>(`/admin/judges/${id}`, { method: 'DELETE' }),
   getJudgeLink: (id: string) => req<{ url: string; token: string }>(`/admin/judges/${id}/link`),
   getResults: (id: string) => req<ResultsResponse>(`/admin/competitions/${id}/results`),

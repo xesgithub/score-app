@@ -211,6 +211,19 @@ router.post('/competitions/:id/judges', async (req, res) => {
   res.status(201).json(judge);
 });
 
+// แก้ไขชื่อกรรมการ (label)
+router.patch('/judges/:id', async (req, res) => {
+  const { label } = req.body;
+  if (label !== undefined && (typeof label !== 'string' || !label.trim())) {
+    return res.status(400).json({ error: 'label ต้องไม่ว่าง' });
+  }
+  const judge = await prisma.judge.update({
+    where: { id: req.params.id },
+    data: { ...(label !== undefined ? { label: label.trim() } : {}) },
+  });
+  res.json(judge);
+});
+
 // ดึงลิงก์กรรมการ
 router.get('/judges/:id/link', async (req, res) => {
   const judge = await prisma.judge.findUnique({ where: { id: req.params.id } });

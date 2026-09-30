@@ -35,6 +35,11 @@ export default function AdminPage() {
   const [judgeLabel, setJudgeLabel] = useState('');
   const [links, setLinks] = useState<Record<string, string>>({});
 
+  // inline edit state — เก็บ id ที่กำลังแก้ + ค่าในฟอร์มแก้
+  const [editCrit, setEditCrit] = useState<{ id: string; name: string; weight: number } | null>(null);
+  const [editComp, setEditComp] = useState<{ id: string; name: string; bib: string } | null>(null);
+  const [editJudge, setEditJudge] = useState<{ id: string; label: string } | null>(null);
+
   async function refreshList() {
     setCompetitions(await adminApi.listCompetitions());
   }
@@ -300,11 +305,53 @@ export default function AdminPage() {
             </h3>
             <ul className="mb-3">
               {selected.criteria?.map((c) => (
-                <li key={c.id} className="flex justify-between border-b py-1 text-sm">
-                  <span>{c.name} — {c.weightPercent}%</span>
-                  <button className="text-red-600" onClick={() => run(() => adminApi.deleteCriterion(c.id))}>
-                    ลบ
-                  </button>
+                <li key={c.id} className="flex justify-between items-center border-b py-1 text-sm gap-2">
+                  {editCrit?.id === c.id ? (
+                    <>
+                      <input
+                        className="border rounded px-2 py-1 flex-1"
+                        value={editCrit.name}
+                        onChange={(e) => setEditCrit({ ...editCrit, name: e.target.value })}
+                      />
+                      <input
+                        type="number"
+                        className="border rounded px-2 py-1 w-20"
+                        value={editCrit.weight || ''}
+                        onChange={(e) => setEditCrit({ ...editCrit, weight: Number(e.target.value) })}
+                      />
+                      <button
+                        className="text-green-700 disabled:text-gray-300"
+                        disabled={!editCrit.name.trim() || loading}
+                        onClick={() =>
+                          run(async () => {
+                            await adminApi.updateCriterion(c.id, {
+                              name: editCrit.name.trim(),
+                              weightPercent: editCrit.weight,
+                            });
+                            setEditCrit(null);
+                          })
+                        }
+                      >
+                        บันทึก
+                      </button>
+                      <button className="text-gray-500" onClick={() => setEditCrit(null)}>
+                        ยกเลิก
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <span className="flex-1">{c.name} — {c.weightPercent}%</span>
+                      <button
+                        className="text-blue-600"
+                        onClick={() => setEditCrit({ id: c.id, name: c.name, weight: c.weightPercent })}
+                      >
+                        แก้ไข
+                      </button>
+                      <button className="text-red-600" onClick={() => run(() => adminApi.deleteCriterion(c.id))}>
+                        ลบ
+                      </button>
+                    </>
+                  )}
                 </li>
               ))}
             </ul>
@@ -343,11 +390,53 @@ export default function AdminPage() {
             <h3 className="font-semibold mb-2">ผู้เข้าแข่งขัน / ทีม</h3>
             <ul className="mb-3">
               {selected.competitors?.map((c) => (
-                <li key={c.id} className="flex justify-between border-b py-1 text-sm">
-                  <span>{c.bibNumber ? `#${c.bibNumber} ` : ''}{c.name}</span>
-                  <button className="text-red-600" onClick={() => run(() => adminApi.deleteCompetitor(c.id))}>
-                    ลบ
-                  </button>
+                <li key={c.id} className="flex justify-between items-center border-b py-1 text-sm gap-2">
+                  {editComp?.id === c.id ? (
+                    <>
+                      <input
+                        className="border rounded px-2 py-1 w-20"
+                        placeholder="หมายเลข"
+                        value={editComp.bib}
+                        onChange={(e) => setEditComp({ ...editComp, bib: e.target.value })}
+                      />
+                      <input
+                        className="border rounded px-2 py-1 flex-1"
+                        value={editComp.name}
+                        onChange={(e) => setEditComp({ ...editComp, name: e.target.value })}
+                      />
+                      <button
+                        className="text-green-700 disabled:text-gray-300"
+                        disabled={!editComp.name.trim() || loading}
+                        onClick={() =>
+                          run(async () => {
+                            await adminApi.updateCompetitor(c.id, {
+                              name: editComp.name.trim(),
+                              bibNumber: editComp.bib.trim() || null,
+                            });
+                            setEditComp(null);
+                          })
+                        }
+                      >
+                        บันทึก
+                      </button>
+                      <button className="text-gray-500" onClick={() => setEditComp(null)}>
+                        ยกเลิก
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <span className="flex-1">{c.bibNumber ? `#${c.bibNumber} ` : ''}{c.name}</span>
+                      <button
+                        className="text-blue-600"
+                        onClick={() => setEditComp({ id: c.id, name: c.name, bib: c.bibNumber ?? '' })}
+                      >
+                        แก้ไข
+                      </button>
+                      <button className="text-red-600" onClick={() => run(() => adminApi.deleteCompetitor(c.id))}>
+                        ลบ
+                      </button>
+                    </>
+                  )}
                 </li>
               ))}
             </ul>
@@ -386,11 +475,42 @@ export default function AdminPage() {
             <ul className="mb-3">
               {selected.judges?.map((j) => (
                 <li key={j.id} className="border-b py-2 text-sm">
-                  <div className="flex justify-between items-center">
-                    <span>{j.label}</span>
-                    <div className="flex gap-3 items-center">
-                      <button
-                        className="text-blue-600"
+                  <div className="flex justify-between items-center gap-2">
+                    {editJudge?.id === j.id ? (
+                      <>
+                        <input
+                          className="border rounded px-2 py-1 flex-1"
+                          value={editJudge.label}
+                          onChange={(e) => setEditJudge({ ...editJudge, label: e.target.value })}
+                        />
+                        <button
+                          className="text-green-700 disabled:text-gray-300"
+                          disabled={!editJudge.label.trim() || loading}
+                          onClick={() =>
+                            run(async () => {
+                              await adminApi.updateJudge(j.id, { label: editJudge.label.trim() });
+                              setEditJudge(null);
+                            })
+                          }
+                        >
+                          บันทึก
+                        </button>
+                        <button className="text-gray-500" onClick={() => setEditJudge(null)}>
+                          ยกเลิก
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <span className="flex-1">{j.label}</span>
+                        <div className="flex gap-3 items-center">
+                          <button
+                            className="text-blue-600"
+                            onClick={() => setEditJudge({ id: j.id, label: j.label })}
+                          >
+                            แก้ไข
+                          </button>
+                          <button
+                            className="text-blue-600"
                         onClick={() =>
                           run(async () => {
                             // toggle: ถ้าแสดงอยู่แล้วให้ซ่อน
@@ -420,6 +540,8 @@ export default function AdminPage() {
                         ลบ
                       </button>
                     </div>
+                      </>
+                    )}
                   </div>
                   {links[j.id] && (
                     <div className="mt-1 bg-gray-50 p-2 rounded flex gap-2 items-center">
