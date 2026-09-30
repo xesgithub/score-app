@@ -345,4 +345,83 @@ router.get('/competitions/:id/results', async (req, res) => {
   });
 });
 
+// ==================== TEST TOOLS (ถอดออกได้เมื่อจบ phase test) ====================
+// เครื่องมือช่วยเทสด่วน: สร้าง/ลบ กรรมการและทีมจำนวนมากเร็ว ๆ
+// ลบทั้งบล็อกนี้ + ส่วน TEST TOOLS ใน frontend เพื่อถอดออก
+
+const MAX_BULK = 100;
+
+// สร้างกรรมการหลายคนรวดเดียว (ตั้งชื่อ "กรรมการ N" ต่อจากที่มีอยู่)
+router.post('/competitions/:id/judges/bulk', async (req, res) => {
+  const count = Math.floor(Number(req.body?.count));
+  if (!Number.isFinite(count) || count < 1 || count > MAX_BULK) {
+    return res.status(400).json({ error: `count ต้องเป็น 1 - ${MAX_BULK}` });
+  }
+  const existing = await prisma.judge.count({ where: { competitionId: req.params.id } });
+  const data = Array.from({ length: count }, (_, i) => ({
+    competitionId: req.params.id,
+    label: `กรรมการ ${existing + i + 1}`,
+    accessToken: generateToken(),
+  }));
+  await prisma.judge.createMany({ data });
+  await logActivity({
+    competitionId: req.params.id,
+    actorType: 'admin',
+    actorLabel: 'Admin',
+    action: 'test.bulk_judges',
+    detail: `[TEST] สร้างกรรมการ ${count} คน`,
+  });
+  res.status(201).json({ created: count });
+});
+
+// สร้างทีมหลายทีมรวดเดียว (ตั้งชื่อ "ทีม N" ต่อจากที่มีอยู่)
+router.post('/competitions/:id/competitors/bulk', async (req, res) => {
+  const count = Math.floor(Number(req.body?.count));
+  if (!Number.isFinite(count) || count < 1 || count > MAX_BULK) {
+    return res.status(400).json({ error: `count ต้องเป็น 1 - ${MAX_BULK}` });
+  }
+  const existing = await prisma.competitor.count({ where: { competitionId: req.params.id } });
+  const data = Array.from({ length: count }, (_, i) => ({
+    competitionId: req.params.id,
+    name: `ทีม ${existing + i + 1}`,
+    displayOrder: existing + i,
+  }));
+  await prisma.competitor.createMany({ data });
+  await logActivity({
+    competitionId: req.params.id,
+    actorType: 'admin',
+    actorLabel: 'Admin',
+    action: 'test.bulk_competitors',
+    detail: `[TEST] สร้างทีม ${count} ทีม`,
+  });
+  res.status(201).json({ created: count });
+});
+
+// ลบกรรมการทั้งหมดของการแข่งขัน (คะแนน/lock ลบตาม cascade)
+router.delete('/competitions/:id/judges/all', async (req, res) => {
+  const r = await prisma.judge.deleteMany({ where: { competitionId: req.params.id } });
+  await logActivity({
+    competitionId: req.params.id,
+    actorType: 'admin',
+    actorLabel: 'Admin',
+    action: 'test.delete_all_judges',
+    detail: `[TEST] ลบกรรมการทั้งหมด (${r.count} คน)`,
+  });
+  res.json({ deleted: r.count });
+});
+
+// ลบทีมทั้งหมดของการแข่งขัน (hard delete — เฉพาะเครื่องมือเทส)
+router.delete('/competitions/:id/competitors/all', async (req, res) => {
+  const r = await prisma.competitor.deleteMany({ where: { competitionId: req.params.id } });
+  await logActivity({
+    competitionId: req.params.id,
+    actorType: 'admin',
+    actorLabel: 'Admin',
+    action: 'test.delete_all_competitors',
+    detail: `[TEST] ลบทีมทั้งหมด (${r.count} ทีม)`,
+  });
+  res.json({ deleted: r.count });
+});
+// ==================== END TEST TOOLS ====================
+
 export default router;

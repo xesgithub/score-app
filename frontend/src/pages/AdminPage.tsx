@@ -60,6 +60,11 @@ export default function AdminPage() {
   const [logAction, setLogAction] = useState('');
   const [logLoading, setLogLoading] = useState(false);
 
+  // ===== TEST TOOLS state (ถอดออกได้เมื่อจบ phase test) =====
+  const [bulkJudges, setBulkJudges] = useState(3);
+  const [bulkTeams, setBulkTeams] = useState(5);
+  // ===== END TEST TOOLS =====
+
   async function loadLogs(reset = true) {
     if (!selected) return;
     setLogLoading(true);
@@ -635,6 +640,97 @@ export default function AdminPage() {
               </button>
             </div>
           </section>
+
+          {/* ===== TEST TOOLS (ถอดออกได้เมื่อจบ phase test) ===== */}
+          <section className="border-2 border-dashed border-amber-400 rounded-lg p-4 mb-4 bg-amber-50">
+            <h3 className="font-semibold mb-1 text-amber-800">🧪 เครื่องมือทดสอบ (Test Tools)</h3>
+            <p className="text-xs text-amber-700 mb-3">
+              สร้าง/ลบ กรรมการและทีมจำนวนมากเร็ว ๆ สำหรับเทส · ⚠️ "ลบทั้งหมด" ลบข้อมูลถาวร (รวมคะแนน)
+            </p>
+            <div className="grid sm:grid-cols-2 gap-3">
+              {/* กรรมการ */}
+              <div className="bg-white rounded p-3 border">
+                <div className="text-sm font-medium mb-2">กรรมการ</div>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    min={1}
+                    max={100}
+                    className="border rounded px-2 py-1 w-20"
+                    value={bulkJudges || ''}
+                    onChange={(e) => setBulkJudges(Number(e.target.value))}
+                  />
+                  <button
+                    className="bg-blue-600 text-white px-3 py-1 rounded text-sm disabled:opacity-50"
+                    disabled={loading || bulkJudges < 1}
+                    onClick={() =>
+                      run(async () => {
+                        const r = await adminApi.bulkAddJudges(selected.id, bulkJudges);
+                        setNotice(`สร้างกรรมการ ${r.created} คนแล้ว`);
+                      })
+                    }
+                  >
+                    + สร้าง
+                  </button>
+                  <button
+                    className="border border-red-500 text-red-600 px-3 py-1 rounded text-sm disabled:opacity-50"
+                    disabled={loading}
+                    onClick={() => {
+                      if (confirm('ลบกรรมการทั้งหมดของการแข่งขันนี้? (คะแนนที่ให้ไว้จะถูกลบด้วย)')) {
+                        run(async () => {
+                          const r = await adminApi.deleteAllJudges(selected.id);
+                          setNotice(`ลบกรรมการ ${r.deleted} คนแล้ว`);
+                        });
+                      }
+                    }}
+                  >
+                    ลบทั้งหมด
+                  </button>
+                </div>
+              </div>
+              {/* ทีม */}
+              <div className="bg-white rounded p-3 border">
+                <div className="text-sm font-medium mb-2">ทีม / ผู้เข้าแข่ง</div>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    min={1}
+                    max={100}
+                    className="border rounded px-2 py-1 w-20"
+                    value={bulkTeams || ''}
+                    onChange={(e) => setBulkTeams(Number(e.target.value))}
+                  />
+                  <button
+                    className="bg-blue-600 text-white px-3 py-1 rounded text-sm disabled:opacity-50"
+                    disabled={loading || bulkTeams < 1}
+                    onClick={() =>
+                      run(async () => {
+                        const r = await adminApi.bulkAddCompetitors(selected.id, bulkTeams);
+                        setNotice(`สร้างทีม ${r.created} ทีมแล้ว`);
+                      })
+                    }
+                  >
+                    + สร้าง
+                  </button>
+                  <button
+                    className="border border-red-500 text-red-600 px-3 py-1 rounded text-sm disabled:opacity-50"
+                    disabled={loading}
+                    onClick={() => {
+                      if (confirm('ลบทีมทั้งหมดของการแข่งขันนี้? (คะแนนที่ให้ไว้จะถูกลบด้วย)')) {
+                        run(async () => {
+                          const r = await adminApi.deleteAllCompetitors(selected.id);
+                          setNotice(`ลบทีม ${r.deleted} ทีมแล้ว`);
+                        });
+                      }
+                    }}
+                  >
+                    ลบทั้งหมด
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
+          {/* ===== END TEST TOOLS ===== */}
 
           {/* Activity Log */}
           <section className="border rounded-lg p-4 mb-4 bg-white">

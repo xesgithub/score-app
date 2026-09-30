@@ -1,6 +1,6 @@
 # 🏆 score-app (ชื่อชั่วคราว)
 
-![version](https://img.shields.io/badge/version-0.5.0-blue)
+![version](https://img.shields.io/badge/version-0.6.0-blue)
 ![frontend](https://img.shields.io/badge/frontend-React%20%2B%20TS%20%2B%20Vite-61DAFB)
 ![backend](https://img.shields.io/badge/backend-Node%20%2B%20Express%20%2B%20Prisma-3178C6)
 ![db](https://img.shields.io/badge/db-SQLite-003B57)
@@ -8,7 +8,7 @@
 
 ระบบเว็บสำหรับ **ให้คะแนนการแข่งขัน** — กรรมการหลายคนให้คะแนนแยกกัน (มองไม่เห็นกัน) แล้วระบบรวมคะแนนถ่วงน้ำหนักและจัดอันดับ
 
-> เวอร์ชันปัจจุบัน: **v0.5.0** — ล็อกคะแนนรายทีม (กันกดผิด), ประวัติ/Log รีเฟรชอัตโนมัติ, ปรับสีสัน UI
+> เวอร์ชันปัจจุบัน: **v0.6.0** — เพิ่มเครื่องมือทดสอบ (สร้าง/ลบ กรรมการและทีมจำนวนมากเร็ว ๆ)
 
 ## 📑 สารบัญ
 

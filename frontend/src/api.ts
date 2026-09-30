@@ -118,6 +118,23 @@ export const adminApi = {
   getVersion: () => req<{ version: string }>(`/version`),
   deleteCompetition: (id: string) => req<void>(`/admin/competitions/${id}`, { method: 'DELETE' }),
   exportUrl: (id: string) => `${BASE}/admin/competitions/${id}/export`,
+
+  // ===== TEST TOOLS (ถอดออกได้เมื่อจบ phase test) =====
+  bulkAddJudges: (id: string, count: number) =>
+    req<{ created: number }>(`/admin/competitions/${id}/judges/bulk`, {
+      method: 'POST',
+      body: JSON.stringify({ count }),
+    }),
+  bulkAddCompetitors: (id: string, count: number) =>
+    req<{ created: number }>(`/admin/competitions/${id}/competitors/bulk`, {
+      method: 'POST',
+      body: JSON.stringify({ count }),
+    }),
+  deleteAllJudges: (id: string) =>
+    req<{ deleted: number }>(`/admin/competitions/${id}/judges/all`, { method: 'DELETE' }),
+  deleteAllCompetitors: (id: string) =>
+    req<{ deleted: number }>(`/admin/competitions/${id}/competitors/all`, { method: 'DELETE' }),
+  // ===== END TEST TOOLS =====
   importCompetition: async (file: File) => {
     const res = await fetch(`${BASE}/admin/competitions/import`, {
       method: 'POST',

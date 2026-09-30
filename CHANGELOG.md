@@ -2,6 +2,15 @@
 
 รูปแบบตาม [Keep a Changelog](https://keepachangelog.com/) และใช้ [Semantic Versioning](https://semver.org/)
 
+## [0.6.0] - 2026-09-30
+
+### Added
+- **เครื่องมือทดสอบ (Test Tools)** ในหน้า Admin — สร้าง/ลบ กรรมการและทีมจำนวนมากเร็ว ๆ สำหรับเทส
+  - Backend: `POST /judges/bulk`, `POST /competitors/bulk`, `DELETE /judges/all`, `DELETE /competitors/all` (ครอบด้วย marker `TEST TOOLS` ถอดออกง่าย)
+  - บันทึกใน log: `test.bulk_judges` / `test.bulk_competitors` / `test.delete_all_*`
+
+> 📌 ส่วนนี้เป็น test function — ออกแบบให้ถอดออกได้เมื่อจบ phase test (มี comment marker ทั้ง backend/frontend)
+
 ## [0.5.0] - 2026-09-30
 
 ### Added
