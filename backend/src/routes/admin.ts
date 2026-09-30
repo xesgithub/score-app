@@ -3,6 +3,7 @@ import { prisma } from '../prisma';
 import { generateToken } from '../token';
 import { computeResults } from '../scoring';
 import { exportCompetition, importCompetition, ImportError } from '../excel';
+import { logActivity } from '../activity';
 
 const router = Router();
 
@@ -73,6 +74,18 @@ router.patch('/competitions/:id', async (req, res) => {
       ...(status !== undefined ? { status } : {}),
     },
   });
+
+  if (status !== undefined) {
+    const label: Record<string, string> = { draft: 'ร่าง', open: 'เปิดรับคะแนน', closed: 'ล็อกแล้ว' };
+    await logActivity({
+      competitionId: competition.id,
+      actorType: 'admin',
+      actorLabel: 'Admin',
+      action: 'competition.status',
+      detail: `เปลี่ยนสถานะเป็น "${label[status] ?? status}"`,
+      metadata: { status },
+    });
+  }
   res.json(competition);
 });
 
@@ -152,7 +165,17 @@ router.patch('/criteria/:id', async (req, res) => {
 });
 
 router.delete('/criteria/:id', async (req, res) => {
+  const c = await prisma.criterion.findUnique({ where: { id: req.params.id } });
   await prisma.criterion.delete({ where: { id: req.params.id } });
+  if (c) {
+    await logActivity({
+      competitionId: c.competitionId,
+      actorType: 'admin',
+      actorLabel: 'Admin',
+      action: 'criterion.delete',
+      detail: `ลบหัวข้อ "${c.name}"`,
+    });
+  }
   res.status(204).end();
 });
 
@@ -189,9 +212,16 @@ router.patch('/competitors/:id', async (req, res) => {
 
 // soft delete
 router.delete('/competitors/:id', async (req, res) => {
-  await prisma.competitor.update({
+  const c = await prisma.competitor.update({
     where: { id: req.params.id },
     data: { isActive: false },
+  });
+  await logActivity({
+    competitionId: c.competitionId,
+    actorType: 'admin',
+    actorLabel: 'Admin',
+    action: 'competitor.delete',
+    detail: `ลบผู้เข้าแข่ง "${c.bibNumber ? `#${c.bibNumber} ` : ''}${c.name}"`,
   });
   res.status(204).end();
 });
@@ -245,8 +275,37 @@ router.post('/judges/:id/revoke-token', async (req, res) => {
 
 // ลบกรรมการ (คะแนนของกรรมการคนนี้ถูกลบตาม onDelete: Cascade)
 router.delete('/judges/:id', async (req, res) => {
+  const j = await prisma.judge.findUnique({ where: { id: req.params.id } });
   await prisma.judge.delete({ where: { id: req.params.id } });
+  if (j) {
+    await logActivity({
+      competitionId: j.competitionId,
+      actorType: 'admin',
+      actorLabel: 'Admin',
+      action: 'judge.delete',
+      detail: `ลบกรรมการ "${j.label}"`,
+    });
+  }
   res.status(204).end();
+});
+
+// logs ทั้งหมดของการแข่งขัน (admin เห็นทุกอย่าง)
+router.get('/competitions/:id/logs', async (req, res) => {
+  const limit = Math.min(Number(req.query.limit ?? 100), 500);
+  const offset = Number(req.query.offset ?? 0);
+  const action = typeof req.query.action === 'string' && req.query.action ? req.query.action : undefined;
+  const where = { competitionId: req.params.id, ...(action ? { action } : {}) };
+  const [logs, total] = await Promise.all([
+    prisma.activityLog.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      skip: offset,
+      select: { id: true, actorType: true, actorLabel: true, action: true, detail: true, createdAt: true },
+    }),
+    prisma.activityLog.count({ where }),
+  ]);
+  res.json({ logs, total });
 });
 
 // ---------- Results / Progress ----------

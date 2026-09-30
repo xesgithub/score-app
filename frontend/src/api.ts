@@ -66,6 +66,22 @@ export interface ResultsResponse {
   results: CompetitorResult[];
 }
 
+// ---------- Activity Log ----------
+export interface AdminLog {
+  id: string;
+  actorType: string;
+  actorLabel: string;
+  action: string;
+  detail?: string | null;
+  createdAt: string;
+}
+export interface JudgeLog {
+  id: string;
+  action: string;
+  detail?: string | null;
+  createdAt: string;
+}
+
 // ---------- Admin ----------
 export const adminApi = {
   listCompetitions: () => req<Competition[]>('/admin/competitions'),
@@ -91,6 +107,14 @@ export const adminApi = {
   deleteJudge: (id: string) => req<void>(`/admin/judges/${id}`, { method: 'DELETE' }),
   getJudgeLink: (id: string) => req<{ url: string; token: string }>(`/admin/judges/${id}/link`),
   getResults: (id: string) => req<ResultsResponse>(`/admin/competitions/${id}/results`),
+  getLogs: (id: string, opts?: { limit?: number; offset?: number; action?: string }) => {
+    const q = new URLSearchParams();
+    if (opts?.limit != null) q.set('limit', String(opts.limit));
+    if (opts?.offset != null) q.set('offset', String(opts.offset));
+    if (opts?.action) q.set('action', opts.action);
+    const qs = q.toString();
+    return req<{ logs: AdminLog[]; total: number }>(`/admin/competitions/${id}/logs${qs ? `?${qs}` : ''}`);
+  },
   getVersion: () => req<{ version: string }>(`/version`),
   deleteCompetition: (id: string) => req<void>(`/admin/competitions/${id}`, { method: 'DELETE' }),
   exportUrl: (id: string) => `${BASE}/admin/competitions/${id}/export`,
@@ -108,10 +132,11 @@ export const adminApi = {
 
 // ---------- Judge ----------
 export interface JudgeSession {
-  judge: { id: string; label: string };
+  judge: { id: string; label: string; scoresLockedAt?: string | null };
   competition: { id: string; name: string; description?: string | null; status: string };
   criteria: Criterion[];
   competitors: Competitor[];
+  lockedCompetitorIds: string[];
 }
 export const judgeApi = {
   session: (token: string) => req<JudgeSession>(`/judge/session?token=${encodeURIComponent(token)}`),
@@ -124,4 +149,28 @@ export const judgeApi = {
       `/judge/scores?token=${encodeURIComponent(token)}`,
       { method: 'PUT', body: JSON.stringify(data) }
     ),
+  lockScores: (token: string) =>
+    req<{ scoresLockedAt: string | null }>(`/judge/scores/lock?token=${encodeURIComponent(token)}`, {
+      method: 'POST',
+    }),
+  unlockScores: (token: string) =>
+    req<{ scoresLockedAt: string | null }>(`/judge/scores/unlock?token=${encodeURIComponent(token)}`, {
+      method: 'POST',
+    }),
+  lockTeam: (token: string, competitorId: string) =>
+    req<{ competitorId: string; locked: boolean }>(`/judge/scores/team-lock?token=${encodeURIComponent(token)}`, {
+      method: 'POST',
+      body: JSON.stringify({ competitorId }),
+    }),
+  unlockTeam: (token: string, competitorId: string) =>
+    req<{ competitorId: string; locked: boolean }>(`/judge/scores/team-unlock?token=${encodeURIComponent(token)}`, {
+      method: 'POST',
+      body: JSON.stringify({ competitorId }),
+    }),
+  getLogs: (token: string, opts?: { limit?: number; offset?: number }) => {
+    const q = new URLSearchParams({ token });
+    if (opts?.limit != null) q.set('limit', String(opts.limit));
+    if (opts?.offset != null) q.set('offset', String(opts.offset));
+    return req<{ logs: JudgeLog[]; total: number }>(`/judge/logs?${q.toString()}`);
+  },
 };

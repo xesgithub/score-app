@@ -23,6 +23,7 @@ model Competition {
   criteria    Criterion[]
   competitors Competitor[]
   judges      Judge[]
+  activityLogs ActivityLog[]
 }
 
 model Criterion {
@@ -48,6 +49,7 @@ model Competitor {
 
   competition   Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
   scores        Score[]
+  teamLocks     TeamLock[]
 }
 
 model Judge {
@@ -56,10 +58,12 @@ model Judge {
   label         String   // เช่น "กรรมการ 1"
   accessToken   String   @unique
   tokenRevoked  Boolean  @default(false)
+  scoresLockedAt DateTime?  // null = ยังแก้คะแนนได้, มีค่า = กรรมการยืนยัน/ล็อกแล้ว
   createdAt     DateTime @default(now())
 
   competition   Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
   scores        Score[]
+  teamLocks     TeamLock[]
 }
 
 model Score {
@@ -76,4 +80,34 @@ model Score {
   criterion    Criterion  @relation(fields: [criterionId], references: [id], onDelete: Cascade)
 
   @@unique([judgeId, competitorId, criterionId])
+}
+
+model ActivityLog {
+  id            String   @id @default(cuid())
+  competitionId String
+  actorType     String   // "admin" | "judge" | "system"
+  actorLabel    String   // snapshot ณ เวลานั้น เช่น "Admin", "กรรมการ 1"
+  actorJudgeId  String?  // ถ้าเป็น judge เก็บ id ไว้ filter (กรรมการเห็นเฉพาะของตัวเอง)
+  action        String   // เช่น "score.set", "competition.status", "score.lock"
+  detail        String?  // ข้อความไทยพร้อมแสดง
+  metadata      String?  // JSON string (before/after ฯลฯ) — optional
+  createdAt     DateTime @default(now())
+
+  competition   Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+
+  @@index([competitionId, createdAt])
+  @@index([actorJudgeId])
+}
+
+// ล็อกคะแนนราย "ทีม" ต่อกรรมการ — กันกดผิดระหว่างกรอก (กรรมการล็อกทีมของตัวเอง)
+model TeamLock {
+  id           String   @id @default(cuid())
+  judgeId      String
+  competitorId String
+  lockedAt     DateTime @default(now())
+
+  judge        Judge      @relation(fields: [judgeId], references: [id], onDelete: Cascade)
+  competitor   Competitor @relation(fields: [competitorId], references: [id], onDelete: Cascade)
+
+  @@unique([judgeId, competitorId])
 }

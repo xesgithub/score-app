@@ -1,6 +1,6 @@
 # Deployment — score-app บน Azure Container Apps
 
-> อัปเดต: 2026-09-29 (v0.2.0)
+> อัปเดต: 2026-09-30 (v0.5.0 · image score-app:v12)
 > เอกสารนี้บันทึกสถาปัตยกรรม deploy จริง, ชื่อ resource, ขั้นตอน redeploy และข้อจำกัด/บทเรียน
 
 ## 1. ภาพรวม
@@ -56,15 +56,21 @@ chcp 65001
 $env:PYTHONIOENCODING="utf-8"; $env:PYTHONUTF8="1"
 
 # 1) build image ใหม่บน ACR (เพิ่มเลขเวอร์ชัน vN) — ใช้ --no-logs เลี่ยง unicode crash
-az acr build --registry acrscoreapp6182 --image score-app:v6 --no-logs .
+az acr build --registry acrscoreapp6182 --image score-app:v13 --no-logs .
 
-# 2) อัปเดต image ใน app.yaml (แก้ score-app:v5 -> v6) แล้ว update
-az containerapp update --name score-app --resource-group rg-score-app --yaml app.yaml
+# 2) อัปเดต image โดยตรง (ไม่ต้องแตะ app.yaml — volume/mount เดิมคงอยู่)
+az containerapp update --name score-app --resource-group rg-score-app `
+  --image acrscoreapp6182.azurecr.io/score-app:v13
 
 # 3) smoke test
-#   https://<fqdn>/api/health  -> {"ok":true}
-#   https://<fqdn>/admin       -> หน้าเว็บโหลด
+#   https://<fqdn>/api/health   -> {"ok":true}
+#   https://<fqdn>/api/version  -> {"version":"x.y.z"}
+#   https://<fqdn>/admin        -> หน้าเว็บโหลด
 ```
+
+> 💡 ตั้งแต่ v6 เป็นต้นมาใช้ `az containerapp update --image ...` โดยตรง (ไม่ต้อง export/แก้ `app.yaml`)
+> วิธีนี้ไม่แตะ volume/mountOptions ที่ตั้งไว้แล้ว จึงปลอดภัยกว่า — ใช้ `--yaml app.yaml` เฉพาะเมื่อต้องแก้ config โครงสร้าง
+> ถ้ามี migration ใหม่ (Prisma) จะถูก apply อัตโนมัติตอน container start (`prisma migrate deploy` ใน Dockerfile CMD)
 
 > `app.yaml` = ไฟล์ config ของ container app (export ด้วย `az containerapp show ... -o yaml`)
 > ถูก gitignore ไว้ (มีข้อมูลเฉพาะ environment) — ถ้าหาย export ใหม่ได้ แล้วเติม volume/mountOptions ตาม §3

@@ -3,7 +3,20 @@ import { Link } from 'react-router-dom';
 import {
   adminApi,
   type Competition,
+  type AdminLog,
 } from '../api';
+
+const ACTION_LABEL: Record<string, string> = {
+  'score.set': 'ให้คะแนน',
+  'score.lock': 'ยืนยันคะแนน',
+  'score.unlock': 'ขอแก้ไขคะแนน',
+  'team.lock': 'ล็อกทีม',
+  'team.unlock': 'ปลดล็อกทีม',
+  'competition.status': 'เปลี่ยนสถานะ',
+  'criterion.delete': 'ลบหัวข้อ',
+  'competitor.delete': 'ลบผู้เข้าแข่ง',
+  'judge.delete': 'ลบกรรมการ',
+};
 
 const STATUS_LABEL: Record<string, string> = {
   draft: 'ร่าง',
@@ -40,6 +53,32 @@ export default function AdminPage() {
   const [editComp, setEditComp] = useState<{ id: string; name: string; bib: string } | null>(null);
   const [editJudge, setEditJudge] = useState<{ id: string; label: string } | null>(null);
 
+  // activity log state
+  const [showLog, setShowLog] = useState(false);
+  const [logs, setLogs] = useState<AdminLog[]>([]);
+  const [logTotal, setLogTotal] = useState(0);
+  const [logAction, setLogAction] = useState('');
+  const [logLoading, setLogLoading] = useState(false);
+
+  async function loadLogs(reset = true) {
+    if (!selected) return;
+    setLogLoading(true);
+    try {
+      const offset = reset ? 0 : logs.length;
+      const r = await adminApi.getLogs(selected.id, {
+        limit: 50,
+        offset,
+        action: logAction || undefined,
+      });
+      setLogs(reset ? r.logs : [...logs, ...r.logs]);
+      setLogTotal(r.total);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setLogLoading(false);
+    }
+  }
+
   async function refreshList() {
     setCompetitions(await adminApi.listCompetitions());
   }
@@ -52,6 +91,20 @@ export default function AdminPage() {
     refreshList().catch((e) => setError(String(e.message)));
   }, []);
 
+  // reset log view เมื่อสลับการแข่งขัน
+  useEffect(() => {
+    setShowLog(false);
+    setLogs([]);
+    setLogTotal(0);
+    setLogAction('');
+  }, [selected?.id]);
+
+  // โหลด log ใหม่เมื่อเปิดส่วน log หรือเปลี่ยนตัวกรอง
+  useEffect(() => {
+    if (showLog) loadLogs(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showLog, logAction]);
+
   async function run(fn: () => Promise<unknown>) {
     setError(null);
     setLoading(true);
@@ -59,6 +112,7 @@ export default function AdminPage() {
       await fn();
       if (selected) await selectCompetition(selected.id);
       await refreshList();
+      if (showLog) await loadLogs(true);
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -104,9 +158,12 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-1">ระบบให้คะแนนการแข่งขัน — Admin</h1>
-      <p className="text-gray-500 mb-6 text-sm">ตั้งค่าการแข่งขัน หัวข้อ ผู้เข้าแข่งขัน และกรรมการ</p>
+    <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-slate-100">
+      <div className="max-w-4xl mx-auto p-4 sm:p-6">
+      <div className="bg-indigo-600 text-white rounded-xl px-5 py-4 mb-6 shadow">
+        <h1 className="text-2xl font-bold mb-0.5">🏆 ระบบให้คะแนนการแข่งขัน — Admin</h1>
+        <p className="text-indigo-100 text-sm">ตั้งค่าการแข่งขัน หัวข้อ ผู้เข้าแข่งขัน และกรรมการ</p>
+      </div>
 
       {error && (
         <div className="bg-red-100 text-red-700 px-4 py-2 rounded mb-4 text-sm">{error}</div>
@@ -578,8 +635,89 @@ export default function AdminPage() {
               </button>
             </div>
           </section>
+
+          {/* Activity Log */}
+          <section className="border rounded-lg p-4 mb-4 bg-white">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold">📜 ประวัติการใช้งาน (Log)</h3>
+              <button
+                className="text-sm text-blue-600"
+                onClick={() => setShowLog((v) => !v)}
+              >
+                {showLog ? 'ซ่อน' : 'แสดง'}
+              </button>
+            </div>
+
+            {showLog && (
+              <div className="mt-3">
+                <div className="flex gap-2 mb-3 items-center">
+                  <select
+                    className="border rounded px-2 py-1.5 text-sm"
+                    value={logAction}
+                    onChange={(e) => setLogAction(e.target.value)}
+                  >
+                    <option value="">ทุกประเภท</option>
+                    <option value="score.set">ให้คะแนน</option>
+                    <option value="score.lock">ยืนยันคะแนน</option>
+                    <option value="score.unlock">ขอแก้ไขคะแนน</option>
+                    <option value="team.lock">ล็อกทีม</option>
+                    <option value="team.unlock">ปลดล็อกทีม</option>
+                    <option value="competition.status">เปลี่ยนสถานะ</option>
+                    <option value="judge.delete">ลบกรรมการ</option>
+                    <option value="criterion.delete">ลบหัวข้อ</option>
+                    <option value="competitor.delete">ลบผู้เข้าแข่ง</option>
+                  </select>
+                  <button className="text-sm border rounded px-3 py-1.5" onClick={() => loadLogs(true)}>
+                    รีเฟรช
+                  </button>
+                  <span className="text-xs text-gray-400 ml-auto">ทั้งหมด {logTotal} รายการ</span>
+                </div>
+
+                <div className="max-h-96 overflow-y-auto border rounded">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 sticky top-0">
+                      <tr className="text-left text-gray-600">
+                        <th className="p-2 w-40">เวลา</th>
+                        <th className="p-2 w-28">ผู้ทำ</th>
+                        <th className="p-2 w-32">การกระทำ</th>
+                        <th className="p-2">รายละเอียด</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {logs.length === 0 && !logLoading && (
+                        <tr>
+                          <td colSpan={4} className="p-4 text-center text-gray-400">ยังไม่มีประวัติ</td>
+                        </tr>
+                      )}
+                      {logs.map((l) => (
+                        <tr key={l.id} className="border-t align-top">
+                          <td className="p-2 text-gray-500 text-xs whitespace-nowrap">
+                            {new Date(l.createdAt).toLocaleString('th-TH')}
+                          </td>
+                          <td className="p-2">{l.actorLabel}</td>
+                          <td className="p-2">{ACTION_LABEL[l.action] ?? l.action}</td>
+                          <td className="p-2 text-gray-700">{l.detail}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {logs.length < logTotal && (
+                  <button
+                    className="mt-2 text-sm text-blue-600 disabled:text-gray-300"
+                    disabled={logLoading}
+                    onClick={() => loadLogs(false)}
+                  >
+                    {logLoading ? 'กำลังโหลด...' : 'โหลดเพิ่ม'}
+                  </button>
+                )}
+              </div>
+            )}
+          </section>
         </>
       )}
+      </div>
     </div>
   );
 }

@@ -81,6 +81,12 @@ erDiagram
 > - `Score` มี **unique constraint** `(judge_id, competitor_id, criterion_id)` กันคะแนนซ้ำ
 > - `AdminUser` (username/password_hash) อยู่ใน spec แต่ **ยังไม่ได้ทำ** ใน v0.2.0 (หน้า Admin ยังไม่มี login)
 
+> [!NOTE]
+> **โมเดลที่เพิ่มหลัง v0.2.0** (รายละเอียดใน [`06-design-log-and-scorelock.md`](06-design-log-and-scorelock.md)):
+> - `ActivityLog` — บันทึกการใช้งาน (v0.4.0)
+> - `Judge.scoresLockedAt` — ยืนยัน/ล็อกคะแนนทั้งชุดของกรรมการ (v0.4.0)
+> - `TeamLock` — ล็อกคะแนนรายทีมต่อกรรมการ กันกดผิด (v0.5.0)
+
 ## 3. สูตรการคำนวณคะแนน
 
 กำหนดให้ในการแข่งขันหนึ่ง:
@@ -149,6 +155,7 @@ GET    /api/version                             เลขเวอร์ชั�
 > **หมายเหตุสถานะจริง (v0.2.0):**
 > - endpoint จริงมี prefix `/api/admin/...` (เช่น `/api/admin/competitions`)
 > - **ยังไม่ได้ทำ:** `/admin/login` + JWT auth (หน้า Admin ยังไม่มีระบบ login), `/progress`, export PDF/CSV, tie-break (ใช้เฉลี่ยธรรมดา + อันดับร่วมเมื่อคะแนนเท่ากัน)
+> - **ทำแล้วหลัง v0.2.0:** แก้ไขชื่อหัวข้อ/ผู้เข้าแข่ง/กรรมการ (PATCH, v0.3.0), Activity Log + ยืนยัน-ล็อกคะแนนทั้งชุด (v0.4.0), ล็อกคะแนนรายทีม (v0.5.0) — ดู [`06-design-log-and-scorelock.md`](06-design-log-and-scorelock.md)
 > - competitor delete = soft delete (is_active=false); judge/criteria/competition delete = ลบจริง (cascade)
 
 ### 4.2 Judge (auth ด้วย access_token ในลิงก์)
