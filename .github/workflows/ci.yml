@@ -25,6 +25,9 @@ jobs:
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
       - name: Prisma generate + validate
+        env:
+          # validate ตรวจแค่ schema syntax ไม่ได้ต่อ DB จริง — ใส่ค่า dummy ให้ env ผ่าน
+          DATABASE_URL: "file:./ci.db"
         run: |
           npx prisma generate
           npx prisma validate
