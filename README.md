@@ -28,6 +28,7 @@
 - [`docs/04-live-workflow.md`](docs/04-live-workflow.md) — 🗺️ workflow present สด (แผนอนาคต)
 - [`docs/05-deployment.md`](docs/05-deployment.md) — 🚀 deploy บน Azure Container Apps (resource, redeploy, ข้อจำกัด)
 - [`docs/06-design-log-and-scorelock.md`](docs/06-design-log-and-scorelock.md) — 📜 ดีไซน์ Activity Log + ระบบล็อกคะแนน (รายทีม/ทั้งชุด)
+- [`docs/07-dev-workflow.md`](docs/07-dev-workflow.md) — 🔄 ขั้นตอน dev → release → deploy + CI/CD
 
 ## 🧰 Tech Stack
 
