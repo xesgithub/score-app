@@ -122,7 +122,9 @@ finalScore(i) = ( Σ_j judgeScore(i, j) ) / m
 ### 3.3 การจัดอันดับและ tie-break
 
 - เรียงจาก `finalScore` มาก → น้อย
-- **Tie-break (รอยืนยัน user จริง):** ถ้า finalScore เท่ากัน เทียบคะแนนเฉลี่ยในหัวข้อที่น้ำหนักสูงสุดก่อน ถ้ายังเท่าให้ครองอันดับร่วม (rank เดียวกัน) — แนวทางนี้เจ้าของโปรเจกต์จะนำไปยืนยันกับ user จริงอีกครั้ง
+- **Tie-break (ยืนยันแล้ว v0.6.0):** ถ้า `finalScore` เท่ากัน → **ครองอันดับร่วม (rank เดียวกัน)** ไม่มีเกณฑ์ตัดสินเพิ่ม
+  - เช่น 2 ทีมได้ที่ 1 → ทั้งคู่ rank 1, ทีมถัดไป rank 3 (standard competition ranking แบบ "1-2-2-4")
+  - implement ใน `computeResults` (`backend/src/scoring.ts`); frontend แสดง `rank` ตรงจาก backend
 
 ## 4. API Endpoints (ร่าง)
 
