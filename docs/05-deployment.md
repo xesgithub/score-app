@@ -133,3 +133,45 @@ az acr build --registry <acrname> --image score-app:v1 --no-logs .
 - **Redeploy ระหว่างงาน:** เลี่ยง deploy ตอนกรรมการกำลังกรอกคะแนน (revision เก่า/ใหม่รันซ้อนช่วงเปลี่ยน)
 - **ลิงก์กรรมการหลัง re-seed/import:** เปลี่ยนใหม่ ต้องแจกใหม่ (เข้า /admin → เลือกการแข่งขัน → แสดงลิงก์)
 - **backup ข้อมูล:** ใช้ปุ่ม Export Excel ต่อการแข่งขัน; หรือดึงไฟล์ `prod.db` จาก file share `scoreapp-data`
+
+
+## 9. CI/CD (GitHub Actions)
+
+แยกเป็น 2 workflow:
+
+| ไฟล์ | บทบาท | trigger |
+|------|-------|---------|
+| `.github/workflows/ci.yml` | **CI** — build/typecheck ทั้ง frontend + backend + `prisma validate` | ทุก push/PR เข้า `main` |
+| `.github/workflows/deploy.yml` | **CD** — `az acr build` + `az containerapp update` + smoke test | push tag `v*` หรือกดรันเอง (workflow_dispatch) |
+
+### 9.1 Flow ปกติ
+1. push โค้ดเข้า `main` → **CI** รัน (จับ error เร็ว ไม่ deploy)
+2. ออก release: `git tag vX.Y.Z && git push --tags` → **CD** build image `score-app:vX.Y.Z` แล้ว deploy ACA อัตโนมัติ
+3. CD ทำ smoke test `/api/health` + `/api/version` ถ้าไม่ผ่าน job จะ fail
+
+> deploy ผูกกับ **tag** (ตั้งใจ release) ไม่ใช่ทุก push — กัน deploy ระหว่างกรรมการกรอกคะแนน (ดู §8)
+
+### 9.2 Setup ครั้งเดียว — Azure credentials เป็น GitHub Secret
+
+สร้าง Service Principal (แนะนำแทน admin credential ของ ACR) แล้วเก็บเป็น secret `AZURE_CREDENTIALS`:
+
+```powershell
+# 1) สร้าง SP ที่มีสิทธิ์ Contributor เฉพาะ resource group นี้ (ขอบเขตแคบ)
+az ad sp create-for-rbac `
+  --name "score-app-gh-actions" `
+  --role Contributor `
+  --scopes /subscriptions/<SUB_ID>/resourceGroups/rg-score-app `
+  --sdk-auth
+# คัดลอก JSON ที่ได้ทั้งก้อน
+
+# 2) GitHub repo → Settings → Secrets and variables → Actions → New repository secret
+#    Name  = AZURE_CREDENTIALS
+#    Value = JSON จากขั้นตอน 1
+```
+
+> `--sdk-auth` ให้ JSON รูปแบบที่ `azure/login@v2` ใช้ได้ทันที
+> SP ต้องมีสิทธิ์ push ไป ACR ด้วย — Contributor บน resource group ครอบคลุมทั้ง ACR build และ container app update ใน RG นี้แล้ว
+
+### 9.3 ค่าคงที่ใน workflow
+`deploy.yml` hardcode ค่า resource (ไม่ลับ) ไว้ใน `env:` — ถ้าเปลี่ยน resource/FQDN ต้องแก้ตรงนั้น:
+`ACR_NAME`, `RESOURCE_GROUP`, `CONTAINERAPP_NAME`, `IMAGE_REPO`, `FQDN`
